@@ -111,6 +111,9 @@ tools/                闸：engine-test / ui-smoke / balance（node）+ verify.s
 这句话有两个方向上的读数撑着：`tools/balance.mjs:105`（B3b）反过来钉——**出货那一盘的枚举必须没撞预算**，
 否则"无上限"不可证；`tools/balance.mjs:147`（B6）在同一个进程里饿不同预算跑同一批 seed，
 打印"出货数 / 换底纹次数 / 总工作量"三条，说明 40 万相对 15 万买到的是更多底纹而不是更多出货。
+B6 还有第四条（`tools/balance.mjs:173`）：`js/engine/tiers.js:27-28` 那句理由里印着的两个对照数
+是从 tiers.js **原文**解析出来的，必须逐值等于本轮当场跑出的读数——注释改回任何历史值就红，
+"注释讲历史、闸判现在"这种两套账在本仓不给活路。
 
 ## 档位：难度只有量出来的那一种说法
 
@@ -205,7 +208,7 @@ seed 游标 `peekSeed`（`js/store.js:158`）是自增小整数，**默认种子
 ```
 node tools/engine-test.mjs   条款贯通 / 池完整性 / 计数器四态 / 出题×判据 / 确定性 / 两套实现（tools/engine-test.mjs:32-295）
 node tools/ui-smoke.mjs      解答判通关 / 画的==点的 / 零猜测推到通关 / 键鼠与存档口径 / 续局生产路径 / 两半的墨分得开（tools/ui-smoke.mjs:111-331）
-node tools/balance.mjs       B1–B6（tools/balance.mjs:54-147）
+node tools/balance.mjs       B1–B6（tools/balance.mjs:54-177）
 bash tools/verify.sh         真浏览器：core play win mouse touch keys save（tools/verify.sh:78）× 两种 URL 形态
 GATE_SELFTEST=1 bash tools/verify.sh   阴性自证：每份报告必须点名吃下种下的错（tools/verify.sh:231-256）
 ```

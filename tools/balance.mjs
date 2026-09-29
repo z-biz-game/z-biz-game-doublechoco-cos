@@ -19,7 +19,7 @@
 //   B3b 池没被截断：出货那盘的枚举工作量必须没撞过预算 ⇒ 它是**完整池**，"无上限规则下唯一"才站得住
 //   B4 成本：work 中位严格递增（确定口径）；墙钟只打印顺序，只判一条上限 GEN_BUDGET_MS
 //   B5 天花板观测：10×10 真的去抽，出货率只是观测；另配一条方向单调的防降级线
-//   B6 CAP_WORK 的理由：同一批 seed 换三个预算，方向必须和 tiers.js 里那句话一致
+//   B6 CAP_WORK 的理由：同一批 seed 换三个预算，方向 + 那句里写的两个"实测"数都得对上本轮读数
 //
 // 用法：node tools/balance.mjs [每档样本数=8] [--pin]
 //   --pin 只打印 golden（并重写 tiers.js 里那四个数组），不做判定——数字要人来钉，不许程序自己改自己的考题。
@@ -165,6 +165,15 @@ console.log('\n== B6 CAP_WORK 那句理由的复跑：同一批 seed 只换预�
     small.aban >= mid.aban ? '小的那一头确实在判不起 ⇒ tiers.js 那句"再小就把正常底纹算不起"有读数' : '两侧一样：那句理由得重写');
   ok(`400 万多做的工一定比 40 万贵（${big.work} > ${mid.work}）`, big.work > mid.work,
     '预算买到的是更多底纹，不是更多出货 ⇒ 这条不收紧，出货率早就满了');
+  // 那句理由里印着的两个对照数也不是文学：把它们从 tiers.js 的**原文**解析出来，和本轮当场跑出的读数
+  // 逐值对表。注释改一个字、或者流水线变了，这一条就红——不许"注释讲历史、闸判现在"两套账。
+  const { readFileSync } = await import('node:fs');
+  const litTxt = readFileSync(new URL('../js/engine/tiers.js', import.meta.url), 'utf8');
+  const lits = [...litTxt.matchAll(/（实测 (\d+) vs (\d+)）/g)].map((m) => [Number(m[1]), Number(m[2])]);
+  ok(`tiers.js 那句理由里印的两个对照数等于本轮读数（读到 ${JSON.stringify(lits)}）`,
+    lits.length === 2 && lits[0][0] === small.aban && lits[0][1] === mid.aban &&
+    lits[1][0] === big.work && lits[1][1] === mid.work,
+    `本轮读出 换底纹 ${small.aban} vs ${mid.aban} · 总工作量 ${big.work} vs ${mid.work}`);
 }
 
 console.log(`\n${checks - fails}/${checks} 条红线绿`);
