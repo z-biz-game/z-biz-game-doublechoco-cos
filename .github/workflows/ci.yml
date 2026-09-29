@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: syntax + engine guarantees
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # No npm install: the game has zero runtime dependencies, and pulling a browser or a
+      # bundler into CI to prove nothing is how a repo starts failing on a network flake.
+      - name: Syntax check every source
+        run: |
+          for f in $(git ls-files 'js/*.js' 'js/*/*.js'); do node --check "$f" || exit 1; done
+          node --check server.cjs
+          for f in $(git ls-files 'tools/*.mjs' tools/scenarios.js tools/playtest.cjs); do node --check "$f" || exit 1; done
+
+      # The real promise: every generated board has one solution and is reachable by the named
+      # pencil rules. Plain Node, so it guards merges without a browser.
+      # 样本数不写成环境变量：本仓的 tools/{engine-test,balance}.mjs 认的是位置参数，
+      # 而 balance 的样本数由 tiers.js 的 gold 数组长度钉住（抽别的 n 会让 B3 的"逐值相等"
+      # 退化成长度都不一样的比较）——带参数跑就等于改考题。
+      - name: Engine tests
+        run: node tools/engine-test.mjs
+
+      # 界面层的 node 烟雾闸：官方例题解答判通关、"画的 == 点的"逐段全数、铅笔一路推到通关
+      # 且落下的段串逐字符等于唯一解、续局走生产的 rebuild() 重证路。
+      # 这一份必须和 npm test 里那条同一条：它挂了却不进 CI，就等于一条只在作者机器上跑过的门。
+      - name: UI node smoke (geometry + zero-guess + resume)
+        run: node tools/ui-smoke.mjs
+
+      # The ladder is a promise, not a caption: the tier medians printed in the menu are what this
+      # step re-measures, and it goes red if a tier stops ordering by deduction rounds.
+      - name: Difficulty ladder is still measured
+        run: node tools/balance.mjs
+
+      - name: Entry files exist
+        run: test -f index.html && grep -q '<canvas' index.html && grep -q 'js/main.js' index.html && grep -q 'doublechoco' index.html
+
+  # 真浏览器闸：headless Chrome + CDP，读 DOM 文本/几何、画布像素与真实输入事件，不读内部标志位。
+  # 独立 job，node 22 而不是 check job 的 20：台架是裸 CDP 驱动，用的是 Node 22 才有的全局
+  # WebSocket/fetch；在 20 上第一次 attach 就死在 "WebSocket is not defined"，一条断言都跑不到。
+  browser:
+    name: real browser gate (both URL shapes)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # verify.sh 自己起 server，两种 URL 形态（根 / 与 Pages 的 /z-biz-game-doublechoco-cos/）都在
+      # 同一个 server 上跑同一套场景；条数逐条相同才算绿。
+      - name: Browser gate, both local URL shapes
+        env:
+          WD_TIMEOUT: 900
+        run: bash tools/verify.sh
+
+      # 阴性自证：闸必须能被证明"会红"。种一条注定错的期望，必须点名变红并且 rc 非 0。
+      - name: Gate proves it can fail
+        env:
+          WD_TIMEOUT: 900
+        run: |
+          set +e
+          GATE_SELFTEST=1 bash tools/verify.sh > _tmp-selftest.log 2>&1
+          rc=$?
+          set -e
+          echo "rc=$rc"
+          tail -25 _tmp-selftest.log; grep -E '应有|点名吃下|ok 闸|RED' _tmp-selftest.log | tail -8
+          [ "$rc" -ne 0 ] || { echo "SELFTEST 竟然全绿：这个闸证明不了自己会红"; exit 1; }
+          grep -q 'FAIL' _tmp-selftest.log || { echo "SELFTEST 红了但没有点名是哪条断言"; exit 1; }

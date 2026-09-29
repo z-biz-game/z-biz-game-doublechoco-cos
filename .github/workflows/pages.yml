@@ -1,0 +1,48 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # No bundler: the game ships plain ES modules, so the site is a file copy.
+      # Only these three paths are reachable from index.html — keeping the server, the harness
+      # and the docs out of the artifact also keeps node_modules out, which `path: .` would
+      # happily upload.
+      # 站点根就是仓库根：Pages 会把它挂在 /z-biz-game-doublechoco-cos/ 前缀下，而 index.html
+      # 里的引用全是相对路径（css/game.css、js/main.js），所以前缀形态不需要第二份构建。
+      - name: Assemble static site
+        run: |
+          mkdir _site
+          cp index.html _site/
+          cp -r css js _site/
+      - uses: actions/configure-pages@v5
+        with:
+          use-actions-v4-deploy-action: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

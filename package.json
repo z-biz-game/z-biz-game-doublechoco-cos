@@ -1,0 +1,27 @@
+{
+  "name": "doublechoco",
+  "version": "1.0.0",
+  "description": "DOUBLE CHOCO / ダブルチョコ 双巧克力方块 — 零猜测区界推理. 出题时由铅笔求解器实测：每一局都唯一可解、且只用具名规则就能推到底, 档位表里的数字与推理轮次都是量出来的.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.cjs",
+    "dev": "node server.cjs 5263",
+    "test": "node tools/engine-test.mjs && node tools/ui-smoke.mjs",
+    "balance": "node tools/balance.mjs",
+    "check": "for f in $(find js tools -type f \\( -name \"*.js\" -o -name \"*.mjs\" -o -name \"*.cjs\" \\) | sort); do node --check \"$f\" || exit 1; done && echo OK",
+    "smoke": "node tools/ui-smoke.mjs"
+  },
+  "keywords": [
+    "game",
+    "puzzle",
+    "double-choco",
+    "doublechoco",
+    "logic",
+    "deduction",
+    "no-guess",
+    "procedural",
+    "web"
+  ],
+  "author": "z-biz-game",
+  "license": "MIT"
+}

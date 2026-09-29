@@ -1,0 +1,319 @@
+/* Colours, spacing and durations all come from js/theme.js via applyThemeVars(); there are
+   no literals here except geometry. That is what keeps the canvas and the stylesheet from
+   drifting into two different-looking games. */
+
+/* 单独一条 [hidden]：下面的 .view/#view-game 都是 display:grid，而 UA 样式表的
+   [hidden]{display:none} 优先级低于任何作者样式——少这一行，"藏起来的选档页"会照样
+   留在几何里被点到。闸不假设这一行存在，它量 hit box。 */
+[hidden] { display: none !important; }
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 62%, var(--surface) 100%);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+body { touch-action: manipulation; }
+
+#app {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--space-page) var(--space-page) var(--space-inner);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-card);
+  min-height: 100vh;
+}
+
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+code { font-family: var(--font-mono); font-size: 0.92em; color: var(--ink-dim); }
+
+/* ---------- top bar ---------- */
+
+.topbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-card);
+}
+
+.brand h1 {
+  margin: 0;
+  font: 700 30px/1.1 var(--font-sans);
+  letter-spacing: 0.16em;
+}
+
+.brand .sub {
+  margin: 4px 0 0;
+  color: var(--ink-dim);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+}
+
+.top-actions { display: flex; gap: var(--space-gutter); }
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-button);
+  border: 1px solid var(--line);
+  background: var(--surface-lift);
+  padding: 10px 14px;
+  min-height: 34px;
+  transition: transform var(--dur-tap) var(--ease-spring), border-color var(--dur-base) var(--ease-ease),
+    background var(--dur-base) var(--ease-ease);
+}
+
+button:hover { border-color: var(--line-heavy); }
+button:active { transform: translateY(1px) scale(0.99); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+button.primary {
+  background: linear-gradient(180deg, var(--accent) 0%, #8f5a2a 100%);
+  border-color: var(--accent-edge);
+  color: #1a1206;
+  font-weight: 700;
+}
+
+button.ghost { background: transparent; }
+button.link { background: none; border: none; color: var(--ink-dim); text-decoration: underline; padding: 0; min-height: 0; }
+button[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
+
+/* ---------- views ---------- */
+
+.view { animation: rise var(--dur-base) var(--ease-ease) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.menu-hero h2 { margin: 0 0 8px; font-size: 19px; line-height: 1.45; font-weight: 700; }
+.menu-hero p { margin: 0 0 var(--space-card); color: var(--ink-dim); font-size: 14px; line-height: 1.85; max-width: 74ch; }
+.menu-hero b { color: var(--ink); }
+
+.menu-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: var(--space-card); }
+.col {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: var(--space-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-inner);
+}
+.col-title { margin: 0; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); }
+
+.tiers { display: grid; gap: 8px; }
+.tier {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 2px 10px;
+  text-align: left;
+  padding: 12px 14px;
+}
+.tier-name { grid-row: 1 / span 2; font-size: 22px; font-weight: 700; align-self: center; }
+.tier-note { font-size: 13px; }
+.tier-size { font-size: 11px; color: var(--ink-dim); }
+.tier-out { margin: 2px 0 0; font-size: 11px; line-height: 1.7; color: var(--ink-faint); }
+/* OUT_OF_MENU 在 tiers.js 里是一条**数组**（奇面积、10×10 成本各一条），
+   所以 #tier-out 是容器：每一条各占一个 .tier-out，页面上不许只念第一条。 */
+#tier-out { display: grid; gap: 4px; }
+
+.menu-disclose {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink-dim);
+  border-left: 3px solid var(--line-heavy);
+  padding-left: 10px;
+}
+.menu-disclose b { color: var(--accent); }
+
+.resume {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-inner);
+  border: 1px dashed var(--line-heavy);
+  border-radius: var(--radius-button);
+  padding: 12px;
+}
+.resume-txt { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.resume-txt span { color: var(--ink-dim); font-size: 12px; }
+
+.records { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+.records li { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.records li b { min-width: 20px; }
+.records li span { color: var(--ink-dim); font-size: 12px; }
+
+.rules { margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.75; color: var(--ink-dim); display: grid; gap: 4px; }
+.rules b { color: var(--ink); }
+.rules-note { margin: 0; font-size: 12px; color: var(--ink-faint); line-height: 1.7; }
+
+/* ---------- game view ---------- */
+
+#view-game {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-card);
+  align-items: start;
+}
+
+.stage { display: flex; flex-direction: column; gap: var(--space-inner); }
+.stage-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.puzzle-name { font-size: 16px; font-weight: 700; }
+.chip {
+  font-size: 12px;
+  padding: 4px 9px;
+  border-radius: var(--radius-chip);
+  /* 他仓这里写的是 --surfaceLift（applyThemeVars 把驼峰转成 kebab，产出的名字是
+     --surface-lift），那条声明一直是个查无此物的变量：色值从没落到芯片上。这里用对的名字。 */
+  background: var(--surface-lift);
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+}
+
+#board-wrap {
+  position: relative;
+  align-self: center;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 6px;
+}
+/* none 不是省电面的手势，是这一盘唯一的落子动作要求的：界面写着「拖过去能连着画一条」，
+   而 manipulation 只关双击缩放、仍把手势交给页面滚动——实测（跑完即删的 _tmp-dcc-legs/probe-touch.cjs）
+   触屏一笔画在第一条之后就来 pointercancel + lostpointercapture，第二条根本画不上。
+   盘外（面板、读数）照常能滚，只有画布上这一块的滚动手势让给了描线。 */
+#board { display: block; touch-action: none; border-radius: var(--radius-card); }
+#board:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+#win-veil {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 7, 12, 0.82);
+  border-radius: var(--radius-card);
+  animation: rise var(--dur-base) var(--ease-ease) both;
+}
+/* 出题中／续局重证中：盖在画布上的一层薄 veil。它存在的理由就是那段同步的贵计算
+   ——没有它，玩家点"极"之后看到的是几秒不动的画布，只能靠猜才知道在算什么。 */
+#busy-veil {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 7, 12, 0.66);
+  border-radius: var(--radius-card);
+}
+#busy-line {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--accent-edge);
+  border-radius: var(--radius-chip);
+  padding: 8px 12px;
+}
+.win-card { text-align: center; padding: var(--space-card); max-width: 92%; }
+.win-card h3 { margin: 0 0 6px; font-size: 20px; }
+.win-card p { margin: 0 0 8px; font-size: 12px; color: var(--ink-dim); line-height: 1.7; }
+.win-record { font-size: 11px; }
+.win-actions { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+
+.conflict-line { margin: 0; min-height: 18px; font-size: 12px; line-height: 1.6; color: var(--error); }
+.conflict-line:empty { color: var(--ink-dim); }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: var(--space-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-inner);
+}
+
+/* 落子盘：四个方向键 = 在光标那一格与那一面邻居之间画/擦区界（与点盘上虚线同一条路）。
+   3×3 的十字，正中是光标格名：它不是键，是"这四个动作绕着哪一格"的读数。 */
+.pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 6px;
+  max-width: 190px;
+  justify-self: center;
+}
+.edge { padding: 12px 0; font-size: 19px; font-weight: 700; text-align: center; line-height: 1; }
+.edge.up { grid-area: 1 / 2; }
+.edge.left { grid-area: 2 / 1; }
+.edge.right { grid-area: 2 / 3; }
+.edge.down { grid-area: 3 / 2; }
+.edge[aria-pressed='true'] { background: var(--accent); color: #1a1206; border-color: var(--accent-edge); }
+.edge:disabled { opacity: 0.28; cursor: not-allowed; }
+.pad-cursor {
+  grid-area: 2 / 2;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line-heavy);
+  border-radius: var(--radius-chip);
+  font-size: 12px;
+  color: var(--accent);
+}
+.pad-cap { margin: 0; font-size: 11px; line-height: 1.7; color: var(--ink-faint); }
+.pad-cap b { color: var(--ink-dim); }
+.acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#btn-hint .mono { margin-left: 6px; font-size: 11px; opacity: 0.75; }
+
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; font-size: 12px; }
+.stat { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); padding-bottom: 4px; color: var(--ink-dim); }
+.stat b { color: var(--ink); font-weight: 600; }
+.stat.bad b { color: var(--error); }
+
+.hint-box { border: 1px dashed var(--line-heavy); border-radius: var(--radius-button); padding: 10px 12px; }
+.hint-box h4 { margin: 0 0 6px; font-size: 13px; color: var(--warn); }
+.hint-box p { margin: 0; font-size: 12px; line-height: 1.75; color: var(--ink-dim); }
+
+/* 图例六项：底纹两色 + 未画虚线 + 区界 + 玩家分组色 + 违反。
+   每一块都读画布用的那一个 token：图例说"区界是白的"而画布画成灰的，
+   玩家就得到一个图例与盘面互相矛盾的游戏。 */
+.legend { display: grid; gap: 5px; font-size: 11.5px; color: var(--ink-dim); }
+.legend span { display: flex; align-items: center; gap: 8px; }
+.sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line); display: inline-block; }
+.sw-gray { background: var(--gray); border-color: var(--gray-edge); }
+.sw-white { background: var(--paper); border-color: var(--paper-edge); }
+.sw-dot { background: repeating-linear-gradient(90deg, var(--dot) 0 3px, transparent 3px 6px), var(--surface-lift); }
+/* 区界在画布上是两种颜色（灰格那半用 --border，纸格那半用 --border-on-paper），图例就必须
+   两块都画：只印近白那一色，玩家会以为画在白纸上的界是看不见的。 */
+.sw-border { background: linear-gradient(90deg, var(--border) 0 50%, var(--border-on-paper) 50% 100%); border-color: var(--line-heavy); }
+.sw-region { background: var(--region-0); }
+.sw-bad { background: var(--error); }
+
+.keyhint { margin: 0; font-size: 11px; line-height: 1.8; color: var(--ink-faint); }
+.keyhint b { color: var(--ink-dim); }
+
+.foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-card);
+  align-items: baseline;
+  font-size: 11px;
+  color: var(--ink-faint);
+  line-height: 1.7;
+}
+
+.reduce-motion * { animation: none !important; transition: none !important; }
+
+@media (max-width: 900px) {
+  #view-game { grid-template-columns: minmax(0, 1fr); }
+  .menu-cols { grid-template-columns: minmax(0, 1fr); }
+  .panel { order: 2; }
+  .stage { order: 1; }
+  #app { padding: 12px 12px var(--space-inner); }
+}
