@@ -39,8 +39,11 @@
       <p class="sub">ダブルチョコ · 双巧克力方块 · Nikoli slug <code>double_choco</code></p>
     </div>
     <div class="top-actions">
-      <button id="btn-sound" class="ghost" type="button" aria-pressed="true">音效 开</button>
+      <button id="btn-pause" class="ghost" type="button" aria-pressed="false" aria-keyshortcuts="P Space">暂停</button>
+      <button id="btn-sound" class="ghost" type="button" aria-pressed="true" aria-keyshortcuts="M">音效 开</button>
       <button id="btn-motion" class="ghost" type="button" aria-pressed="false">动效 全</button>
+      <button id="btn-full" class="ghost" type="button" aria-pressed="false" aria-keyshortcuts="F">全屏</button>
+      <button id="btn-howto" class="ghost" type="button" aria-pressed="false" aria-keyshortcuts="?" title="玩法与按键">玩法</button>
     </div>
   </header>
 
@@ -110,6 +113,32 @@
           <div id="busy-veil" hidden>
             <span id="busy-line" class="mono"></span>
           </div>
+          <div id="pause-veil" hidden>
+            <div class="pause-card">
+              <h3>已暂停</h3>
+              <p id="pause-meta">计时与落子回显都冻在这里；这一局的进度已写进存档。</p>
+              <div class="win-actions">
+                <button id="btn-pause-2" class="primary" type="button">继续（P）</button>
+                <button id="btn-pause-menu" class="ghost" type="button">回选档</button>
+              </div>
+            </div>
+          </div>
+          <div id="howto-veil" hidden>
+            <div class="howto-card">
+              <h3>玩法与按键</h3>
+              <p>
+                半盘灰是题面印好的底纹，不用你涂。你只做一件事：<b>决定两格之间画不画一条区界</b>。
+                每一块必须是一白色区加一灰色区、两区同形同尺寸（可旋转、可镜像）；
+                块里的数字数的是<b>这一格自己那个颜色</b>在本块里的格数。
+              </p>
+              <!-- 规则条目不在 HTML 里手抄：与选档页那四条同源，句子由 js/engine/pencil.js 的 RULE_TEXT 给 -->
+              <ol id="howto-rules" class="rules"></ol>
+              <p id="howto-keys" class="mono"></p>
+              <div class="win-actions">
+                <button id="btn-howto-close" class="primary" type="button">知道了（Esc）</button>
+              </div>
+            </div>
+          </div>
           <div id="win-veil" hidden>
             <div class="win-card">
               <h3>每一块都折成了同形的两半</h3>
@@ -171,7 +200,10 @@
           <span><i class="sw sw-region"></i>同块分组色（你自己的归类回显，不是答案）</span>
           <span><i class="sw sw-bad"></i>违反条款</span>
         </div>
-        <p class="keyhint"><b>点击/触屏</b> 点虚线画界、点格子移光标 · <b>按住拖</b> 连着画一条 · <b>↑↓←→</b> 移光标 · <b>Shift+方向键</b> 画/擦那一面的界 · <b>H</b> 提示 · <b>Z</b> <b>退格</b> 撤销</p>
+        <!-- 按键表不在 HTML 里手抄：唯一的来源是 js/main.js 的 KEYCAPS，由 syncKeycaps() 写进
+             这两个元素（面板这一行 + 玩法浮层那一段）。代码改了键位而页面还印着旧键位，
+             比没有按键说明更糟。 -->
+        <p id="keyhint" class="keyhint"></p>
       </aside>
     </section>
   </main>
@@ -194,8 +226,7 @@
   if (location.protocol === 'https:' || /^http:$/i.test(location.protocol)) {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker
-          .register('sw.js', { scope: './' })
+        navigator.serviceWorker.register('sw.js', { scope: './' })
           .then((reg) => { window.dcSW = { state: 'registered', why: reg.scope }; })
           .catch((err) => {
             window.dcSW = { state: 'failed', why: String(err && err.message || err) };

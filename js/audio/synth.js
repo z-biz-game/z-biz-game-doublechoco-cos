@@ -5,9 +5,19 @@
 
 let ctx = null;
 let master = null;
-let enabled = true;
+// 静音与"暂停把声音按住"是两件事：前者是玩家的设定（跨局、存档里带着走），
+// 后者是这一局的会话状态（恢复时必须按前者的结论决定要不要继续响）。
+let muted = false;
+let held = false;
+
+function audioIdle() {
+  return muted || held;
+}
 
 function audio() {
+  // 静音/暂停态**连上下文都不新建**：新建一个 running 的 AudioContext 比新建一个振荡器
+  // 更糟——它会在后台一直走表，而"静音"这件事在页面上看起来像做了其实没做。
+  if (audioIdle()) return null;
   if (typeof AudioContext === 'undefined' && typeof webkitAudioContext === 'undefined') return null;
   if (!ctx) {
     const Ctor = typeof AudioContext !== 'undefined' ? AudioContext : webkitAudioContext;
@@ -24,15 +34,33 @@ function audio() {
   return ctx;
 }
 
+// 该不该挂起，只由 muted/held 两个标志决定；两处入口各自只改自己那一个，再走同一条 apply。
+function apply() {
+  if (!ctx || typeof ctx.suspend !== 'function') return;
+  try {
+    if (muted || held) ctx.suspend().catch(() => {});
+    else ctx.resume().catch(() => {});
+  } catch {
+    /* 老 WebKit 上 suspend 可能是同步的或不存在 */
+  }
+}
+
+function hold(on) {
+  held = on;
+  apply();
+}
+
 // One oscillator with a two-point pitch glide and an exponential decay. Everything below is
 // a call to this; adding a second voice shape is how a game ends up with sounds that do not
 // belong to the same instrument.
 function tone({ f0, f1 = f0, dur = 0.12, type = 'sine', gain = 0.22, delay = 0 }) {
+  if (audioIdle()) return false;      // 静音/暂停：一个节点都不许建（下面那台计数器就是它的证人）
   const ac = audio();
-  if (!ac || !enabled) return;
+  if (!ac) return false;
   const t = ac.currentTime + delay;
   const osc = ac.createOscillator();
   const vol = ac.createGain();
+  voices++;
   osc.type = type;
   osc.frequency.setValueAtTime(f0, t);
   osc.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t + dur);
@@ -42,13 +70,36 @@ function tone({ f0, f1 = f0, dur = 0.12, type = 'sine', gain = 0.22, delay = 0 }
   osc.connect(vol).connect(master);
   osc.start(t);
   osc.stop(t + dur + 0.02);
+  return true;
 }
 
+let voices = 0;
+
 export const Sound = {
-  setEnabled(v) {
-    enabled = !!v;
+  // 静音是**挂起上下文**，不是把 master 拧到 0：前者可以被外部读成 ctx.state === 'suspended'，
+  // 后者只是让玩家以为没声音了，而振荡器还在建、表还在走。
+  setMuted(v) {
+    muted = !!v;
+    apply();
+    return muted;
   },
-  enabled: () => enabled,
+  isMuted: () => muted,
+  toggleMute() {
+    return Sound.setMuted(!muted);
+  },
+
+  // 会话级按住（暂停用这一条）：恢复时仍尊重静音设定
+  pauseAudio: () => hold(true),
+  resumeAudio: () => hold(false),
+  held: () => held,
+
+  // 没有上下文就是 none：静音态下点十个键也应该是 none，而不是 suspended 之后一路 running
+  ctxState: () => (ctx ? ctx.state : 'none'),
+  voices: () => voices,
+  resetVoices() {
+    voices = 0;
+    return voices;
+  },
 
   // 1..5 climb a pentatonic: the pitch tells you which mark went down without looking.
   // DC-HOOK: hebi 的 v 是格里的数字 1–5；DOUBLE CHOCO 的 v 是 game.js 定义的落子值

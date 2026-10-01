@@ -218,8 +218,12 @@ export class BoardView {
     if (hover >= 0 && hover < game.segs.length) this.strokeEmphasis(this.segLine(hover), withAlpha(Palette.accent, 0.5), cell);
 
     // 提示/冲突点名的那条界：界面唯一被允许说"看这里"的地方。
+    // alpha 是 js/anim.js 由帧 dt 累计出来的包络终点——这一行不乘它，那条时钟就只是
+    // 一笔算了却没人看的账（§6 的阴性对照钉的正是这里：把 alpha 丢掉，三档对拍必须变红）。
     if (pulse && pulse.seg != null && pulse.seg >= 0 && pulse.seg < game.segs.length) {
-      this.strokeEmphasis(this.segLine(pulse.seg), pulse.color || Palette.hint, cell);
+      const col = pulse.color || Palette.hint;
+      const a = pulse.alpha == null ? 1 : Math.max(0.08, Math.min(1, pulse.alpha));
+      this.strokeEmphasis(this.segLine(pulse.seg), a >= 1 ? col : withAlpha(col, a), cell);
     }
     if (pulse && (pulse.seg == null) && pulse.cell != null && pulse.cell >= 0) {
       const r = this.cellRect(pulse.cell);

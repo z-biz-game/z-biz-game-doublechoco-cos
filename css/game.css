@@ -19,12 +19,35 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-body { touch-action: manipulation; }
+body { touch-action: manipulation; position: relative; }
+
+/* 底纹这一层用的是**仓内生成的**可平铺颗粒（assets/texture/paper-fibre.png，256×256，
+   由 assets/gen/gen_art.py 的可平铺 fbm 噪声出，`--verify` 里对表四角亮度）。
+   走 ::before 而不是 background-image 只有一个理由：强度要能写死在这一行的 opacity 上——
+   这张图最亮的像素带 68% alpha，直接铺在渐变之上是"满天星"而不是底纹。
+   pointer-events:none + z-index:0：它是一层看的东西，不是一个能挡住点击的东西。 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: url('../assets/texture/paper-fibre.png') repeat;
+  background-size: 256px 256px;
+  opacity: 0.05;
+}
 
 #app {
+  position: relative;
+  z-index: 1;
   max-width: 1180px;
+  /* 刘海与 Home 指示条不能压在落子面板上：env() 的四个 inset 加在原有一圈内边距之外，
+     没刘海的设备上 env() 取 0，这一行不会改变任何已量到的几何。 */
   margin: 0 auto;
-  padding: var(--space-page) var(--space-page) var(--space-inner);
+  padding: calc(var(--space-page) + env(safe-area-inset-top))
+    calc(var(--space-page) + env(safe-area-inset-right))
+    calc(var(--space-inner) + env(safe-area-inset-bottom))
+    calc(var(--space-page) + env(safe-area-inset-left));
   display: flex;
   flex-direction: column;
   gap: var(--space-card);
@@ -65,8 +88,11 @@ button {
   border-radius: var(--radius-button);
   border: 1px solid var(--line);
   background: var(--surface-lift);
-  padding: 10px 14px;
-  min-height: 34px;
+  padding: 12px 16px;
+  /* 44px 是拇指的下限，不是审美选择：这一局唯一的落子是"点两格之间那条虚线"，
+     而键盘盘上那四个方向键与选档卡片就是它在触屏上的替身。34px 的替身会 miss，
+     miss 在一次画界上表现为"什么都没发生"，玩家只能重按一次——那就成了双落子。 */
+  min-height: 44px;
   transition: transform var(--dur-tap) var(--ease-spring), border-color var(--dur-base) var(--ease-ease),
     background var(--dur-base) var(--ease-ease);
 }
@@ -83,7 +109,9 @@ button.primary {
 }
 
 button.ghost { background: transparent; }
-button.link { background: none; border: none; color: var(--ink-dim); text-decoration: underline; padding: 0; min-height: 0; }
+/* 无边框的文本按钮，但它做的是"清空存档"——会抹掉玩家全部纪录的那一个动作，
+   不该是全页唯一一个小过拇指的目标，所以 44px 这一条对它同样成立。 */
+button.link { background: none; border: none; color: var(--ink-dim); text-decoration: underline; padding: 6px 8px; min-height: 44px; }
 button[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
 
 /* ---------- views ---------- */
@@ -221,8 +249,85 @@ button[aria-pressed='true'] { border-color: var(--accent); background: var(--acc
   border-radius: var(--radius-chip);
   padding: 8px 12px;
 }
-.win-card { text-align: center; padding: var(--space-card); max-width: 92%; }
+
+/* 暂停浮层：与 #busy-veil 同一套叠放语义（absolute inset:0 盖住画布），多出来的只是"继续/回选档"
+   两个动作。它存在的理由不是那句"已暂停"，而是让浮层与 js/main.js 的 blocked() 对上：
+   浮层在几何上盖住画布，落子的每一个入口又都过同一道门——两头都要成立。 */
+#pause-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 7, 12, 0.78);
+  border-radius: var(--radius-card);
+  touch-action: manipulation;
+}
+.pause-card {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  text-align: center;
+  padding: var(--space-card);
+  max-width: 92%;
+  /* 辉光用的是仓内生成的精灵 assets/sprite/pulse-glow.png（128×128 径向 alpha 圈，
+     颜色取自 Palette.accent）：这一层回显与画布上落子那一声用的是同一个母题。 */
+  background: url('../assets/sprite/pulse-glow.png') no-repeat center / 320px 320px;
+}
+.pause-card h3 { margin: 0; font-size: 20px; }
+.pause-card p { margin: 0 0 8px; font-size: 12px; color: var(--ink-dim); line-height: 1.7; }
+
+/* 玩法浮层是视口级的：它要装下四条规则与整张按键表，压在 240px 见方的画布上一定滚不动。 */
+#howto-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+    calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+  background: rgba(5, 7, 12, 0.86);
+}
+.howto-card {
+  /* 小屏上四条规则 + 十四行按键一定高过视口，所以这一张必须自己会滚——
+     overflow 在 fixed 层里不给上，"知道了"那颗键就会滚不到。 */
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  gap: var(--space-inner);
+  justify-items: start;
+  background: var(--surface);
+  border: 1px solid var(--line-heavy);
+  border-radius: var(--radius-card);
+  padding: var(--space-card);
+  max-width: min(680px, 92vw);
+}
+.howto-card h3 { margin: 0; font-size: 19px; }
+.howto-card p { margin: 0; font-size: 13px; line-height: 1.8; color: var(--ink-dim); }
+.howto-card b { color: var(--ink); }
+#howto-keys { font-size: 12px; line-height: 2; }
+.howto-card .win-actions { margin-top: 0; }
+
+.win-card {
+  text-align: center;
+  padding: var(--space-card);
+  max-width: 92%;
+  /* 通关这一张带两层生成的图：底是琥珀辉光（pulse-glow.png），标题前一颗火星（win-spark.png，
+     96×96 的 alpha 形）。它们与画布上落子回显取自同一份 Palette.accent，
+     所以"通关"与"我刚才那一刀"是同一个游戏里的两件事。 */
+  background: url('../assets/sprite/pulse-glow.png') no-repeat center / 360px 360px;
+}
 .win-card h3 { margin: 0 0 6px; font-size: 20px; }
+.win-card h3::before {
+  content: '';
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  vertical-align: -3px;
+  background: url('../assets/sprite/win-spark.png') no-repeat center / contain;
+}
 .win-card p { margin: 0 0 8px; font-size: 12px; color: var(--ink-dim); line-height: 1.7; }
 .win-record { font-size: 11px; }
 .win-actions { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
@@ -285,9 +390,13 @@ button[aria-pressed='true'] { border-color: var(--accent); background: var(--acc
    玩家就得到一个图例与盘面互相矛盾的游戏。 */
 .legend { display: grid; gap: 5px; font-size: 11.5px; color: var(--ink-dim); }
 .legend span { display: flex; align-items: center; gap: 8px; }
-.sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line); display: inline-block; }
-.sw-gray { background: var(--gray); border-color: var(--gray-edge); }
-.sw-white { background: var(--paper); border-color: var(--paper-edge); }
+.sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line); display: inline-block; background-size: 14px 14px; }
+/* 图例这两块带的是**画布同源**的颗粒（assets/texture/{choco-grain,paper-fibre}.png，
+   由 gen_art.py 从 Palette.gray / Palette.paper 同一份 token 出）。图例说的是"这种底色长这样"，
+   那就不能是一块纯色塑料。颗粒亮度只在大数的 ±6 内（grain lum 57–88 对 --gray 的 68），
+   所以它不改变图例与盘面之间的任何一条色距——那一条由 ui-smoke 第 6 段钉着。 */
+.sw-gray { background: url('../assets/texture/choco-grain.png') repeat, var(--gray); border-color: var(--gray-edge); }
+.sw-white { background: url('../assets/texture/paper-fibre.png') repeat, var(--paper); border-color: var(--paper-edge); }
 .sw-dot { background: repeating-linear-gradient(90deg, var(--dot) 0 3px, transparent 3px 6px), var(--surface-lift); }
 /* 区界在画布上是两种颜色（灰格那半用 --border，纸格那半用 --border-on-paper），图例就必须
    两块都画：只印近白那一色，玩家会以为画在白纸上的界是看不见的。 */
@@ -310,10 +419,33 @@ button[aria-pressed='true'] { border-color: var(--accent); background: var(--acc
 
 .reduce-motion * { animation: none !important; transition: none !important; }
 
+/* 系统级 prefers-reduced-motion 是一条**真分支**，不是把上面那行换个写法：玩家从没点过页面上
+   那颗"动效 省"，但操作系统替他说了这句话，页面就得照做。
+   这一层管得到 DOM 的入场动画与过渡；画布里那层落子回显 CSS 一句都说了不算（它不在样式表里，
+   是 ctx 上的像素），那一半由 js/main.js 的 draw() 读 prefersReducedMotion() 判——为真时整层不画。
+   所以这句话必须两边各写一次，不是在 CSS 里写一遍就当成立。 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+  .view, #win-veil, #busy-veil, #pause-veil { animation: none !important; }
+  button:active { transform: none; }
+}
+
 @media (max-width: 900px) {
   #view-game { grid-template-columns: minmax(0, 1fr); }
   .menu-cols { grid-template-columns: minmax(0, 1fr); }
   .panel { order: 2; }
   .stage { order: 1; }
-  #app { padding: 12px 12px var(--space-inner); }
+  /* 窄屏才是刘海与 Home 指示条真正会出现的那一支，所以这里的 padding 也必须带着 env()：
+     写死 12px 会把宽屏那一行刚建立的 safe-area 适配整条抹掉（后写的同名声明就是赢家）。 */
+  #app {
+    padding: calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right))
+      calc(var(--space-inner) + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+  }
 }
