@@ -18,6 +18,9 @@ const TYPES = {
   '.cjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  // Chrome 只接受 application/manifest+json（或 +xml）；落成 octet-stream 的话
+  // <link rel="manifest"> 会报"清单无法解析"，于是本地这条可安装路径从来没通过。
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.ico': 'image/x-icon',
