@@ -1,0 +1,120 @@
+{
+ "generator": "assets/gen/gen_art.py",
+ "motif": "2x2 double-choco board: paper + same-shaped choco, amber border cross",
+ "palette": {
+  "bgTop": "#0A0D14",
+  "gray": "#3B4557",
+  "paper": "#EDEFF5",
+  "accent": "#FFC46B"
+ },
+ "files": [
+  {
+   "path": "icons/icon-1024.png",
+   "w": 1024,
+   "h": 1024,
+   "bytes": 184085
+  },
+  {
+   "path": "icons/icon-512.png",
+   "w": 512,
+   "h": 512,
+   "bytes": 62387
+  },
+  {
+   "path": "icons/icon-192.png",
+   "w": 192,
+   "h": 192,
+   "bytes": 12218
+  },
+  {
+   "path": "icons/icon-180.png",
+   "w": 180,
+   "h": 180,
+   "bytes": 11867
+  },
+  {
+   "path": "icons/icon-96.png",
+   "w": 96,
+   "h": 96,
+   "bytes": 4509
+  },
+  {
+   "path": "icons/icon-64.png",
+   "w": 64,
+   "h": 64,
+   "bytes": 2438
+  },
+  {
+   "path": "icons/icon-48.png",
+   "w": 48,
+   "h": 48,
+   "bytes": 1770
+  },
+  {
+   "path": "icons/icon-32.png",
+   "w": 32,
+   "h": 32,
+   "bytes": 1121
+  },
+  {
+   "path": "icons/icon-16.png",
+   "w": 16,
+   "h": 16,
+   "bytes": 500
+  },
+  {
+   "path": "icons/apple-touch-icon.png",
+   "w": 180,
+   "h": 180,
+   "bytes": 11867
+  },
+  {
+   "path": "icons/icon-maskable-1024.png",
+   "w": 1024,
+   "h": 1024,
+   "bytes": 147240
+  },
+  {
+   "path": "icons/icon-maskable-512.png",
+   "w": 512,
+   "h": 512,
+   "bytes": 49086
+  },
+  {
+   "path": "icons/icon-maskable-192.png",
+   "w": 192,
+   "h": 192,
+   "bytes": 9816
+  },
+  {
+   "path": "icons/og-cover.png",
+   "w": 1200,
+   "h": 630,
+   "bytes": 100216
+  },
+  {
+   "path": "assets/texture/choco-grain.png",
+   "w": 256,
+   "h": 256,
+   "bytes": 102253
+  },
+  {
+   "path": "assets/texture/paper-fibre.png",
+   "w": 256,
+   "h": 256,
+   "bytes": 71351
+  },
+  {
+   "path": "assets/sprite/pulse-glow.png",
+   "w": 128,
+   "h": 128,
+   "bytes": 6932
+  },
+  {
+   "path": "assets/sprite/win-spark.png",
+   "w": 96,
+   "h": 96,
+   "bytes": 2211
+  }
+ ]
+}
