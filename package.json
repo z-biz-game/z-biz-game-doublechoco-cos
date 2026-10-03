@@ -9,7 +9,9 @@
     "test": "node tools/engine-test.mjs && node tools/ui-smoke.mjs",
     "balance": "node tools/balance.mjs",
     "check": "for f in $(find js tools server.cjs -type f \\( -name \"*.js\" -o -name \"*.mjs\" -o -name \"*.cjs\" \\) | sort); do node --check \"$f\" || exit 1; done && echo OK",
-    "smoke": "node tools/ui-smoke.mjs"
+    "smoke": "node tools/ui-smoke.mjs",
+    "deploy-set": "node tools/deploy-set.mjs",
+    "deploy-set:selftest": "node tools/deploy-set-selftest.mjs"
   },
   "keywords": [
     "game",
