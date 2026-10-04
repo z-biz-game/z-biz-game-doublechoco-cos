@@ -234,7 +234,7 @@ if [ "$SELF" = 1 ]; then
       core|play|win) EXPECTED=$((EXPECTED + 2)) ;;
       mouse|touch|keys) EXPECTED=$((EXPECTED + 1)) ;;
       save) EXPECTED=$((EXPECTED + 5)) ;;
-      *) echo "  RED 未知的腿：$leg（对数表里没有它）" >&2; FAILED=1 ;;
+      *) echo "  RED 未知的腿：${leg}（对数表里没有它）" >&2; FAILED=1 ;;
     esac
   done
   EXPECTED=$((EXPECTED * ${#SHAPES[@]}))
@@ -242,7 +242,7 @@ if [ "$SELF" = 1 ]; then
   HIT=$(awk '$2 > 0' "$REPORTS" | wc -l | tr -d ' ')
   echo "  应有 $EXPECTED 份报告，实到 $GOT 份，其中 $HIT 份点名吃下了种下的错"
   if [ "$GOT" != "$EXPECTED" ]; then
-    echo "  RED 阴性自证的报告数对不上：$GOT ≠ $EXPECTED（有腿没跑，或对数表漂了）" >&2
+    echo "  RED 阴性自证的报告数对不上：$GOT ≠ ${EXPECTED}（有腿没跑，或对数表漂了）" >&2
     FAILED=1
   fi
   if [ "$FAILED" = 0 ]; then
