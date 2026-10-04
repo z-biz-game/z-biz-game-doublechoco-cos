@@ -20,7 +20,7 @@ set -u
 HERE=$(cd "$(dirname "$0")/.." && pwd)
 # 9363 而不是 9362：9362 是本农场里 z-biz-game-hebi-cos 那条闸的 devtools 端口，
 # 两个仓同时在跑时 attach 到别人的 Chrome 上，读到的是别人的盘。
-PORT=${CDP_PORT:-9363}
+PORT=${CDP_PORT:-9363}; if command -v lsof >/dev/null 2>&1 && lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then echo ":$PORT is already LISTENING — a sibling gate or an orphan Chrome holds it; attaching there reads someone else's browser. Wait for it to finish, or rerun with CDP_PORT=<a free port>." >&2; lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >&2 || true; exit 6; fi  # 一机一台：撞在同一个默认口上时不报错的是 Chrome，报错的是绿——先让路再开闸
 # 5263 是本仓自己的端口；别的 agent 同时在跑各自仓的 verify.sh，端口撞了就会拿到"另一个仓"的
 # index.html，那种绿比红更糟。
 HTTP=${HTTP_PORT:-5263}
