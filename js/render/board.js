@@ -12,14 +12,6 @@
 // 点线与粗实线都跨在两种底色上（灰格与白格相邻时），所以同一段的左半与右半各用自己的颜色，
 // 靠 clip 到各自格子实现——一条线一个颜色时，总有一半会沉进底色里看不见。
 
-
-/* ---------- 帧率无关（dt）---------- */
-/* 本仓**没有逐帧运动**，所以「帧率无关」这一项在本仓是空命题而不是缺陷：全仓只有一处 requestAnimationFrame，在 js/main.js:115 的 `requestAnimationFrame(() => setTimeout(fin, 0))`——让出一帧好让 busy 态先画出来，之后靠 setTimeout 接力，**不自续期**；棋盘重绘由 pointerdown / click / keydown 触发
-   没有自续期的 requestAnimationFrame 循环，屏上就没有「每帧推进」的量，帧率也就无从影响它。
-   写这段备案是为了让账上分得开"查过、确实不需要"与"没人查过"——不是为了让判据变绿。
-
-   规矩：**哪天在本仓加了逐帧动画循环，必须先删掉这段备案**，并让循环体消费 rAF 自带的
-   时间戳（或自己取 performance.now()），把动画进度写成绝对截止；只按帧累加位置的一律不算。 */
 import { Palette, Cell, Radius, Font, Hit } from '../theme.js';
 import { BORDER, segKey } from '../ui/game.js';
 
