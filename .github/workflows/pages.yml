@@ -20,16 +20,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # No bundler: the game ships plain ES modules, so the site is a file copy.
-      # Only these three paths are reachable from index.html — keeping the server, the harness
-      # and the docs out of the artifact also keeps node_modules out, which `path: .` would
-      # happily upload.
-      # 站点根就是仓库根：Pages 会把它挂在 /z-biz-game-doublechoco-cos/ 前缀下，而 index.html
-      # 里的引用全是相对路径（css/game.css、js/main.js），所以前缀形态不需要第二份构建。
+      # 拷贝清单不由注释决定，由下一步的 `node tools/ship-check.mjs` 决定：它把 index.html 的
+      # href/src/og:image/字面量、css 的 url()、manifest 的 icons[].src、sw.js 的 SHELL[]、
+      # js 里的资产字面量逐条收下来，判两件事——①文件在仓树里真实存在（并读 PNG 的 IHDR）
+      # ②在 _site 的覆盖范围里。少一个源就一条红，所以这份清单不可能再悄悄落后于页面引用：
+      # 上一版就是这么漏掉 icons/ 与 assets/，线上 14 条引用全 404，而本地一切正常。
+      # assets/gen（生成器与 palette.json）不上线——那是出货前的工具，不是站点的一部分；
+      # tools/、DESIGN.md、server.cjs、node_modules 同理。
+      # 站点根就是仓库根：Pages 会把它挂在 /z-biz-game-doublechoco-cos/ 前缀下，而页面里的引用
+      # 全是相对路径（css/game.css、assets/texture/x.png），前缀形态不需要第二份构建。
       - name: Assemble static site
         run: |
-          mkdir _site
-          cp index.html _site/
-          cp -r css js _site/
+          mkdir -p _site/assets
+          cp index.html manifest.webmanifest sw.js _site/
+          cp -r css js icons _site/
+          cp -r assets/texture assets/sprite _site/assets/
+      # 产物与引用对不上表就不许 deploy：404 的图标与 404 的离线壳在页面上都是沉默的。
+      - name: Ship list covers every same-origin reference
+        run: node tools/ship-check.mjs
       - uses: actions/configure-pages@v5
         with:
           use-actions-v4-deploy-action: true

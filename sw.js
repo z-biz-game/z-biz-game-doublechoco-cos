@@ -25,6 +25,13 @@ const SHELL = [
   './icons/icon-512.png',
   './icons/icon-1024.png',
   './icons/apple-touch-icon.png',
+  // 纹理与精灵也必须进壳：它们是画布与卡片的一层像素，不是装饰性 fallback——
+  // 首装之后立刻断网时缺这四张，底纹会静默退成纯色而页面上一个字都不说。
+  // （清单由 `node tools/ship-check.mjs` 与页面引用对表；assets/gen 是生成器，不上线也不进壳。）
+  './assets/texture/paper-fibre.png',
+  './assets/texture/choco-grain.png',
+  './assets/sprite/pulse-glow.png',
+  './assets/sprite/win-spark.png',
 ];
 
 self.addEventListener('install', (ev) => {
