@@ -68,7 +68,14 @@ class El {
   closest() { return null; }
   contains() { return false; }
   focus() {} blur() {}
-  getBoundingClientRect() { return { left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600 }; }
+  // 浏览器报的是**布局之后的 CSS 尺寸**：board.js 的 resize() 会写下 style.width/height，
+  // 而落点换算正拿 rect 当分母。恒返回 800×600 的桩等于给 harness 一个假坐标系——
+  // 同一根指针在真假桩下会命中不同的段，量出来的"点不中"是桩的毛病不是产品的。
+  getBoundingClientRect() {
+    const px = (v, fb) => { const n = parseFloat(v); return Number.isFinite(n) && n > 0 ? n : fb; };
+    const width = px(this.style.width, 800), height = px(this.style.height, 600);
+    return { left: 0, top: 0, right: width, bottom: height, width, height };
+  }
   requestFullscreen() { return Promise.resolve(); }
 }
 

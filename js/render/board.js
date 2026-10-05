@@ -139,19 +139,31 @@ class BoardView {
     return bestD <= tol ? best : -1;
   }
 
-  hitSegment(clientX, clientY) {
+  // 指针给的是视口 CSS 像素，segLine/cellRect 用的是 resize() 算出的那套 CSS 像素。
+  // 两者只在"画布没被任何 CSS 缩过"时才相等：flex 收缩、浏览器缩放、样式里加一条
+  // max-width 都会让 rect 与 style.width 分开——届时偏移是**比例**的，越靠盘右下角越大，
+  // 也就是简报点名的"点 A 打 B"。所以按 rect 实测尺寸换算，而不是假定 1:1。
+  localPoint(clientX, clientY) {
     const rect = this.canvas.getBoundingClientRect();
-    return this.segFromPoint(clientX - rect.left, clientY - rect.top);
+    const g = this.geo;
+    const sx = rect.width && g.w ? g.w / rect.width : 1;
+    const sy = rect.height && g.h ? g.h / rect.height : 1;
+    return { x: (clientX - rect.left) * sx, y: (clientY - rect.top) * sy };
+  }
+
+  hitSegment(clientX, clientY) {
+    const p = this.localPoint(clientX, clientY);
+    return this.segFromPoint(p.x, p.y);
   }
 
   // 点击所在格：段没点着时用它移动光标，键盘（Shift+方向键）就从这一格接着画。
   hitCell(clientX, clientY) {
-    const rect = this.canvas.getBoundingClientRect();
     const { cell, x, y } = this.geo;
     const g = this.game;
     if (!cell || !g) return -1;
-    const c = Math.floor((clientX - rect.left - x) / cell);
-    const r = Math.floor((clientY - rect.top - y) / cell);
+    const p = this.localPoint(clientX, clientY);
+    const c = Math.floor((p.x - x) / cell);
+    const r = Math.floor((p.y - y) / cell);
     if (r < 0 || c < 0 || c >= g.C || r >= g.R) return -1;
     return g.B.id(r, c);
   }

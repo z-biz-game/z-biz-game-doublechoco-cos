@@ -86,7 +86,16 @@ function makeCanvas(w, h) {
   const canvas = {
     style: {}, width: 0, height: 0,
     getContext: () => ctx,
-    getBoundingClientRect: () => ({ left: 0, top: 0, width: w, height: h }),
+    // resize() 写下 style.width/height 之后，浏览器报的 rect 就是那套 CSS 像素。桩必须照
+    // 这一件事回报：它原先恒返回构造尺寸，而 hitSegment 现在正是拿 rect 当缩放分母——
+    // 一个说谎的 rect 会在本地量具里造出"点不中"的假红。
+    getBoundingClientRect: () => {
+      const px = (v, fb) => { const n = parseFloat(v); return Number.isFinite(n) && n > 0 ? n : fb; };
+      return {
+        left: canvas.__left || 0, top: canvas.__top || 0,
+        width: px(canvas.style.width, w), height: px(canvas.style.height, h),
+      };
+    },
   };
   return { canvas, rec };
 }
@@ -171,6 +180,39 @@ function geomLeg(tier, seedFrom) {
   }
   ok(`${tier.key} 格心命中的就是那一格`, offCell === 0, `偏了 ${offCell} 格`);
   ok(`${tier.key} 盘外既不是段也不是格`, view.hitSegment(-4, -4) === -1 && view.hitCell(geo.w + 40, geo.h + 40) === -1);
+
+  // 缩放腿：CSS 把画布缩过（flex 收缩、浏览器缩放、样式里加一条 max-width）之后，玩家按在
+  // "看得见的那条段"上，落点必须还是那一条段。偏移是比例的，所以这一腿不是装饰——不照 rect
+  // 实测尺寸换算，右下角的段会偏到隔壁那条上去。
+  const scale = 0.62, ox = 37, oy = 21;
+  canvas.style.width = `${geo.w * scale}px`;
+  canvas.style.height = `${geo.h * scale}px`;
+  canvas.__left = ox; canvas.__top = oy;
+  const toClient = (p) => ({ x: ox + p.x * scale, y: oy + p.y * scale });
+  let wrongScaled = [];
+  for (let k = 0; k < g.segs.length; k++) {
+    const s = view.segLine(k);
+    const c = toClient({ x: (s.x1 + s.x2) / 2, y: (s.y1 + s.y2) / 2 });
+    if (view.hitSegment(c.x, c.y) !== k) wrongScaled.push(`段${k}`);
+  }
+  ok(`${tier.key} CSS 缩到 ${scale} 且原点偏移 ${ox},${oy} 之后每条段仍命中自己`,
+    wrongScaled.length === 0, `${wrongScaled.slice(0, 4).join(' ')}（共 ${g.segs.length} 条）`);
+  let offScaled = 0;
+  for (const i of g.B.cells) {
+    const r = view.cellRect(i);
+    const c = toClient({ x: r.x + r.size / 2, y: r.y + r.size / 2 });
+    if (view.hitCell(c.x, c.y) !== i) offScaled++;
+  }
+  ok(`${tier.key} 缩放之后格心命中的仍是那一格`, offScaled === 0, `偏了 ${offScaled}/${g.B.cells.length} 格`);
+  // 阴性对照：同一张缩过的画布，把**没换算**的几何点当视口像素喂进去（就是修复前 hitCell 的
+  // 行为），必须偏。不偏说明这一腿在这套几何上是空跑的，缩放那条断言也就什么都没说。
+  let naive = 0;
+  for (const i of g.B.cells) {
+    const r = view.cellRect(i);
+    if (view.hitCell(ox + r.x + r.size / 2, oy + r.y + r.size / 2) !== i) naive++;
+  }
+  ok(`${tier.key} 阴性对照成立：不照 rect 换算必须偏（偏了 ${naive}/${g.B.cells.length} 格）`,
+    naive > 0, `${naive}`);
 
   g.loadCodes(g.solutionCodes());
   rec.strokes.length = 0; rec.texts.length = 0; rec.bad.length = 0; rec.off.length = 0;

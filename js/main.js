@@ -810,11 +810,6 @@ function applySettings() {
 let drag = null; // { target, seen:Set<段号> }：拖过一串段时，每一段都落向同一个目标态
 let hoverSeg = -1;
 
-function canvasPoint(ev) {
-  const rect = view.canvas.getBoundingClientRect();
-  return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
-}
-
 function onPointerDown(ev) {
   if (blocked()) return;
   const k = view.hitSegment(ev.clientX, ev.clientY);
