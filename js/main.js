@@ -1168,6 +1168,9 @@ window.DoubleChoco = {
   // 底纹到底载没载进来：浏览器那一腿只看像素会分不清"纹理失败退了纯色"与"纹理本来就是这么淡"。
   // 读数来自 js/render/board.js 的加载结算，不是再建一份状态。
   get texturesReady() { return boardTexLoaded; },
+  // 指针悬停强调的那一条段（-1 = 没有）。它是画布上唯一由指针位置决定的读数，
+  // 所以"换一局之后还亮着上一局某条段"这种残留，必须由这里能被读到，node 侧才复验得了。
+  get hover() { return hoverSeg; },
 };
 
 // 同一个对象，两个名字：`window.<GameName>` 是给玩家与调试用的正名，而官方量具
