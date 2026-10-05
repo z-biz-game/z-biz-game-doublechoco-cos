@@ -458,5 +458,73 @@ head('6. 触摸输入回落（pointerdown / touchstart / mousedown 各画一条�
   }
 }
 
+// ---- 7. reduceMotion：开关按下之后时钟不走、回显当场清掉，而玩法一条不少 ----
+head('7. reduceMotion 真分支（走 #btn-motion 那扇门，量 anim 时钟与回显）');
+{
+  const H = boot(0x3c0ffee, null);
+  H.fire(H.env, 'DOMContentLoaded', H.mkEv('DOMContentLoaded'));
+  const g = H.env.game;
+  const tick = () => new Promise((r) => setImmediate(r));
+  const pump = async (n) => { for (let f = 1; f <= n; f++) { H.step(60); await tick(); } return n; };
+  if (!g) ok('window.game 挂上了', false, '读不到状态面，后面全部作废');
+  else {
+    g.start();
+    await pump(6);
+    let pt = null;
+    for (let y = 8; y <= 420 && pt === null; y += 3) {
+      for (let x = 8; x <= 520; x += 3) {
+        H.fire(H.board, 'pointermove', H.mkEv('pointermove', { clientX: x, clientY: y, pointerType: 'mouse' }));
+        if (g.hover >= 0) { pt = { x, y }; break; }
+      }
+    }
+    ok(`扫到一个段上落点（${JSON.stringify(pt)}）`, !!pt, String(JSON.stringify(pt)));
+    const tap = async () => {
+      H.fire(H.board, 'pointerdown', H.mkEv('pointerdown', { clientX: pt.x, clientY: pt.y, pointerType: 'mouse', isPrimary: true }));
+      H.fire(H.env, 'pointerup', H.mkEv('pointerup', { clientX: pt.x, clientY: pt.y, pointerType: 'mouse' }));
+      await pump(1);
+    };
+    // 常速这一腿是"分支存在"的证人：时钟得真的在走、回显得真的挂得住，
+    // 否则下面"关掉之后不推进"可以是由一个根本没跑起来的东西给的。
+    const t0 = g.animTime;
+    await tap();
+    const pulsesOn = g.pulses;
+    await pump(30);
+    const advance = g.animTime - t0;
+    ok(`常速下时钟在走、回显挂得住（animTime +${advance.toFixed(4)}s，落子后 pulses=${pulsesOn}，30 帧后=${g.pulses}）`,
+      advance > 0.3 && pulsesOn >= 1, `advance=${advance.toFixed(4)} pulses ${pulsesOn}→${g.pulses}`);
+    // 玩家那扇门：#btn-motion
+    H.fire(H.env.document.getElementById('btn-motion'), 'click', H.mkEv('click'));
+    await pump(1);
+    const t1 = g.animTime;
+    await pump(30);
+    const advanceOff = g.animTime - t1;
+    ok(`按下动效开关之后累计时钟不走（30 帧只推进 ${advanceOff.toFixed(6)}s）`,
+      advanceOff === 0, `t1=${t1.toFixed(4)} → ${g.animTime.toFixed(4)}`);
+    await tap();
+    await pump(6);
+    ok(`回显当场被清掉（pulses=${g.pulses}，而界照样落下 cuts=${g.cuts}）`,
+      g.pulses === 0, `pulses=${g.pulses} cuts=${g.cuts}`);
+    const cutsBefore = g.cuts;
+    await tap();
+    ok(`省动效不许省掉玩法：再落一条界（cuts ${cutsBefore}→${g.cuts}）`,
+      g.cuts === cutsBefore + 1, `${cutsBefore}→${g.cuts}`);
+    // 阴性对照：把 anim.js 里那条 reduced 分支接成常数 false（= 开关只改界面、不改行为，
+    // 正是简报要打死的那种假分支）。同一颗种子、同样 30 帧，时钟必须走起来——
+    // 不走就说明上面那条"推进 0.000000s"是空断言。
+    const Hm = boot(0x3c0ffee, { file: 'js/anim.js', from: 'if (this.reduced()) {', to: 'if (false) {' });
+    Hm.fire(Hm.env, 'DOMContentLoaded', Hm.mkEv('DOMContentLoaded'));
+    const gm = Hm.env.game;
+    gm.start();
+    for (let f = 1; f <= 6; f++) { Hm.step(60); await tick(); }
+    Hm.fire(Hm.env.document.getElementById('btn-motion'), 'click', Hm.mkEv('click'));
+    const m0 = gm.animTime;
+    for (let f = 1; f <= 30; f++) { Hm.step(60); await tick(); }
+    const advMut = gm.animTime - m0;
+    ok(`阴性对照成立：reduced 分支接成 false 之后同一时长时钟必须走（推进 ${advMut.toFixed(4)}s）`,
+      advMut > 0.3, `advance=${advMut.toFixed(6)}`);
+    if (H.env.__err) ok('reduceMotion 路径无运行期报错', false, String(H.env.__err).split('\n')[0]);
+  }
+}
+
 console.log(`\nbehavior ${fails.length ? `${pass}/${pass + fails.length} 绿 —— 红：\n    ${fails.join('\n    ')}` : `${pass}/${pass} 绿`}`);
 process.exit(fails.length ? 1 : 0);
