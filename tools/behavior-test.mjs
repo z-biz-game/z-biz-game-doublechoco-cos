@@ -12,6 +12,7 @@
 
 import { readFileSync } from 'node:fs';
 import { loadGame, ORDER } from './loader.mjs';
+import { boot } from './app-host.mjs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -282,6 +283,100 @@ head('4. 存档：四个坏样本各自只丢那一条，纪录与游标不许�
   const m2 = load({ files: ['js/store.js'] }).exports;
   ok('存档跨重启读得回来（setItem 与 getItem 成对，不是只写不读）',
     typeof m2.Store.data.resume === 'object' && m2.Store.data.resume.seed === 7);
+}
+
+// ---- 5. 重开 / 再来一局：一次复位要把五类状态全部归零，逐值实测 ----
+// 简报 §2 对这一项的要求不是"调了一次 init()"，而是"时钟、缓冲、粒子、玩家位置、临时增益
+// 全部复位（实测复位前后数值）"。三把闸原先都没量这一项：behavior 的四段是纯状态单元
+// （Session/Anim/Sound/Store），engine 那 44 条管出题，ui-smoke 管几何与零猜测——
+// "换一局"这条生产路径（#btn-new 的 click → restart() → begin() → openPuzzle()）
+// 从来没人把前后数值对过表。这里用 tools/app-host.mjs 那份能跑 main.js 的宿主来判。
+head('5. 重开复位逐值（走 #btn-new 的真实 click 路径，不是直接调 init）');
+{
+  const H = boot(0x2f6e2b1, null);
+  H.fire(H.env, 'DOMContentLoaded', H.mkEv('DOMContentLoaded'));
+  const g = H.env.game;
+  if (!g) { ok('window.game 挂上了', false, '读不到状态面，后面全部作废'); }
+  else {
+    // 沙箱只推进虚拟时钟，不排空微任务队列；而 restart() → begin() 是 async 的（它要给
+    // "出题中"浮层让帧）。只 H.step() 而不 await 一发，那条 await 的尾巴永远不落地——
+    // 实测症状是"复位前/复位后逐字段一字不差"，看着像产品没复位，其实是 harness 没让开局跑完。
+    const tick = () => new Promise((r) => setImmediate(r));
+    async function pump(frames, until = null) {
+      for (let f = 1; f <= frames; f++) {
+        H.step(60);
+        await tick();
+        if (until && until()) return f;
+      }
+      return frames;
+    }
+    g.start();
+    const kd = (key, shift = false) => {
+      H.fire(H.env, 'keydown', H.mkEv('keydown', { key, code: key, shiftKey: shift }));
+      H.fire(H.env, 'keyup', H.mkEv('keyup', { key }));
+    };
+    const ARROWS = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'];
+    // 真玩 1.2 秒：方向键移光标、奇数拍画界、盘面 tap、每 12 拍一次提示（提示的回显排进 anim，
+    // 那是"缓冲里有东西"这一类的证人）。
+    await pump(12);
+    for (let f = 1; f <= 72; f++) {
+      if (f % 6 === 0) kd(ARROWS[(f / 6) % 4], (f / 6) % 2 === 1);
+      if (f % 9 === 0) {
+        const x = 40 + (f % 5) * 30, y = 40 + (f % 4) * 30;
+        H.fire(H.board, 'pointerdown', H.mkEv('pointerdown', { clientX: x, clientY: y, pointerType: 'mouse', isPrimary: true }));
+        H.fire(H.env, 'pointerup', H.mkEv('pointerup', { clientX: x, clientY: y, pointerType: 'mouse' }));
+      }
+      if (f % 12 === 0) kd('h');
+      await pump(1);
+    }
+    // 悬停强调只有 pointermove 且指针落在一道段上才产生（触屏设备没有悬停这个状态，见 onPointerMove）。
+    // 这里照玩家那扇门扫过去，扫到才算证到——不是把 hover 设出来给断言看。
+    let swept = null;
+    for (let y = 10; y <= 590 && swept === null; y += 4) {
+      for (let x = 10; x <= 790; x += 4) {
+        H.fire(H.board, 'pointermove', H.mkEv('pointermove', { clientX: x, clientY: y, pointerType: 'mouse' }));
+        if (g.hover >= 0) { swept = { x, y, hover: g.hover }; break; }
+      }
+    }
+    const before = { state: g.state, elapsedMs: g.elapsedMs, pulses: g.pulses, moves: g.moves, cuts: g.cuts, hints: g.hints, cursor: g.cursor, hover: g.hover, remaining: g.remaining };
+    // 先自证这一局真的被玩过：before 全是 0 的话，"after 是 0"就什么都没说（§6 同一种空跑）。
+    // 取证人不选 hints：不产生推进的提示**不收费**（useHint 里那句 unproductive hint is not
+    // a purchase），hints==0 是产品说对了，拿它当"玩过"的证据会让这一列恒红。
+    ok(`玩过的这一局留下了痕迹（elapsed ${before.elapsedMs}ms / moves ${before.moves} / cuts ${before.cuts} / 回显 ${before.pulses} 条 / hover 指着段 ${before.hover} / cursor ${before.cursor}）`,
+      before.state === 'playing' && before.elapsedMs >= 1000 && before.moves > 0 && before.cuts > 0 && before.pulses > 0 && before.hover >= 0 && before.cursor !== 0,
+      JSON.stringify({ before, swept }));
+    console.log(`      复位前 ${JSON.stringify(before)}（hover 扫到于 ${JSON.stringify(swept)}）`);
+
+    // 走玩家那扇门：#btn-new 的 click。begin() 是 async（要给"出题中"浮层让帧），
+    // 所以点完之后照 60Hz 继续喂**并排空微任务**，直到新题面真的落盘（seed 变了）。
+    const btn = H.env.document.getElementById('btn-new');
+    const seed0 = g.seed;
+    H.fire(btn, 'click', H.mkEv('click'));
+    const pumped = await pump(240, () => g.seed !== seed0);
+    const after = { state: g.state, elapsedMs: g.elapsedMs, pulses: g.pulses, moves: g.moves, cuts: g.cuts, hints: g.hints, cursor: g.cursor, hover: g.hover, remaining: g.remaining };
+    console.log(`      复位后 ${JSON.stringify(after)}（喂了 ${pumped} 帧，seed ${seed0}→${g.seed}）`);
+    ok(`换局真的换了题面（seed ${seed0} → ${g.seed}）`, g.seed !== seed0, `${seed0} vs ${g.seed}`);
+    ok(`时钟归零（${after.elapsedMs}ms < 100ms）`, after.elapsedMs < 100, `${after.elapsedMs}ms`);
+    ok(`回显缓冲清空（anim 里 ${after.pulses} 条，复位前 ${before.pulses} 条）`, after.pulses === 0, `${after.pulses}`);
+    ok(`手数与界数归零（moves ${after.moves} / cuts ${after.cuts}）`,
+      after.moves === 0 && after.cuts === 0, JSON.stringify(after));
+    ok(`光标回到左上第一格（cursor ${after.cursor}）`, after.cursor === 0, `${after.cursor}`);
+    ok(`悬停强调撤掉（hover ${after.hover}，复位前指着段 ${before.hover}）`, after.hover === -1, `${after.hover}`);
+    ok(`违反读数与区域回显归零（conflicts ${g.conflicts}）`, g.conflicts === 0, `${g.conflicts}`);
+    ok(`胜局遮罩收着（#win-veil hidden=${H.env.document.getElementById('win-veil').hidden}）`,
+      H.env.document.getElementById('win-veil').hidden === true, String(H.env.document.getElementById('win-veil').hidden));
+    ok(`重开之后关卡仍在跑（state=${after.state}，remaining ${after.remaining}）`,
+      after.state === 'playing' && after.remaining > 0, JSON.stringify(after));
+    // 再来一次：同一扇门按两下不许留下第二局的痕迹（"只调一次 init()"的那种写法在这里会红）。
+    const seed1 = g.seed;
+    H.fire(btn, 'click', H.mkEv('click'));
+    await pump(240, () => g.seed !== seed1);
+    const again = { elapsedMs: g.elapsedMs, pulses: g.pulses, moves: g.moves, cuts: g.cuts, hover: g.hover, cursor: g.cursor };
+    ok(`连按两次"换一局"仍然干净（${JSON.stringify(again)}，seed ${seed1}→${g.seed}）`,
+      again.elapsedMs < 100 && again.pulses === 0 && again.moves === 0 && again.cuts === 0 && again.hover === -1 && again.cursor === 0,
+      JSON.stringify(again));
+    if (H.env.__err) ok('复位路径无运行期报错', false, String(H.env.__err).split('\n')[0]);
+  }
 }
 
 console.log(`\nbehavior ${fails.length ? `${pass}/${pass + fails.length} 绿 —— 红：\n    ${fails.join('\n    ')}` : `${pass}/${pass} 绿`}`);

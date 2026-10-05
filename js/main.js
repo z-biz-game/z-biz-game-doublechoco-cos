@@ -641,6 +641,9 @@ function openPuzzle(puzzle, resume = null) {
   // 换一局 = 回显与计时一起从零：anim 里留着上一局的脉冲、或 session 里留着上一局的耗时，
   // 都会变成"这一局"的读数——纪录与屏幕上的 00:00 从此各说一套。
   anim.reset();
+  // 悬停强调也归零：hoverSeg 只有 pointerleave 会清，而换一局时鼠标往往一直停在盘面上，
+  // 于是上一局某条段的虚线会原样亮在这一局上（段的编号在新题面下指向别的东西）。
+  hoverSeg = -1;
   el.winVeil.hidden = true;
   const from = resume ? resume.elapsedMs || 0 : 0;
   if (resume) {
