@@ -379,5 +379,84 @@ head('5. 重开复位逐值（走 #btn-new 的真实 click 路径，不是直接
   }
 }
 
+// ---- 6. 触摸输入：三条门要落下同一条界 ----
+head('6. 触摸输入回落（pointerdown / touchstart / mousedown 各画一条且只画一条）');
+{
+  const H = boot(0x7a1e05, null); // 这台窗口没有 PointerEvent ⇒ 回落应当挂上
+  H.fire(H.env, 'DOMContentLoaded', H.mkEv('DOMContentLoaded'));
+  const g = H.env.game;
+  const tick = () => new Promise((r) => setImmediate(r));
+  const pump = async (n, until) => {
+    for (let f = 1; f <= n; f++) { H.step(60); await tick(); if (until && until()) return f; }
+    return n;
+  };
+  const btn = H.env.document.getElementById('btn-new');
+  const fresh = async () => { const s = g.seed; H.fire(btn, 'click', H.mkEv('click')); await pump(240, () => g.seed !== s); };
+  if (!g) ok('window.game 挂上了', false, '读不到状态面，后面全部作废');
+  else {
+    g.start();
+    await pump(6);
+    // 落点要"真的在某条段上"才算证到：扫 pointermove，直到 hover 亮起来，那一个坐标就是段上的点。
+    let pt = null;
+    for (let y = 8; y <= 420 && pt === null; y += 3) {
+      for (let x = 8; x <= 520; x += 3) {
+        H.fire(H.board, 'pointermove', H.mkEv('pointermove', { clientX: x, clientY: y, pointerType: 'mouse' }));
+        if (g.hover >= 0) { pt = { x, y }; break; }
+      }
+    }
+    ok(`扫到一个真落在段上的落点（${JSON.stringify(pt)}）`, !!pt, String(JSON.stringify(pt)));
+    // 换局不改变几何（同档 R×C 与 cell 同一套），所以同一个坐标在每一局都指着同一条段。
+    const doors = [
+      ['pointerdown', async () => {
+        H.fire(H.board, 'pointerdown', H.mkEv('pointerdown', { clientX: pt.x, clientY: pt.y, pointerType: 'touch', isPrimary: true }));
+        H.fire(H.env, 'pointerup', H.mkEv('pointerup', { clientX: pt.x, clientY: pt.y, pointerType: 'touch' }));
+      }],
+      ['touchstart', async () => {
+        const t = { clientX: pt.x, clientY: pt.y };
+        H.fire(H.board, 'touchstart', H.mkEv('touchstart', { touches: [t], changedTouches: [t] }));
+        H.fire(H.board, 'touchend', H.mkEv('touchend', { touches: [], changedTouches: [t] }));
+      }],
+      ['mousedown', async () => {
+        H.fire(H.board, 'mousedown', H.mkEv('mousedown', { clientX: pt.x, clientY: pt.y, button: 0 }));
+        H.fire(H.env, 'mouseup', H.mkEv('mouseup', { clientX: pt.x, clientY: pt.y }));
+      }],
+    ];
+    for (const [name, fire] of doors) {
+      await fresh();
+      const before = { cuts: g.cuts, moves: g.moves, hover: g.hover };
+      await fire();
+      await pump(2);
+      const delta = g.cuts - before.cuts;
+      ok(`${name} 落下恰好一条界（cuts ${before.cuts}→${g.cuts}，moves ${before.moves}→${g.moves}）`,
+        delta === 1, `Δcuts=${delta}`);
+    }
+    // 触屏没有"悬停"这个状态：touchmove 之后 hover 必须还是 -1，否则一条没人指的段会亮着。
+    await fresh();
+    H.fire(H.board, 'touchmove', H.mkEv('touchmove', { touches: [{ clientX: pt.x, clientY: pt.y }], changedTouches: [{ clientX: pt.x, clientY: pt.y }] }));
+    ok(`touchmove 不点亮相（hover ${g.hover}）`, g.hover === -1, `${g.hover}`);
+    H.fire(H.board, 'mousemove', H.mkEv('mousemove', { clientX: pt.x, clientY: pt.y }));
+    ok(`mousemove 点亮相（hover ${g.hover}，落点 ${JSON.stringify(pt)}）`, g.hover >= 0, `${g.hover}`);
+
+    // 阴性对照：一台**声称支持 Pointer Events** 的窗口里，回落就不许再挂——两边都挂的话
+    // 一次点按会同时走 pointerdown 与 mousedown，第二条把第一条擦掉，落子整个反了。
+    const H2 = boot(0x7a1e05, null, { pointerEvents: true });
+    H2.fire(H2.env, 'DOMContentLoaded', H2.mkEv('DOMContentLoaded'));
+    const g2 = H2.env.game;
+    const pump2 = async (n) => { for (let f = 1; f <= n; f++) { H2.step(60); await tick(); } };
+    g2.start();
+    await pump2(6);
+    const c0 = g2.cuts;
+    H2.fire(H2.board, 'mousedown', H2.mkEv('mousedown', { clientX: pt.x, clientY: pt.y, button: 0 }));
+    H2.fire(H2.env, 'mouseup', H2.mkEv('mouseup', { clientX: pt.x, clientY: pt.y }));
+    await pump2(2);
+    ok(`对照：有 PointerEvent 时 mousedown 不画界（cuts ${c0}→${g2.cuts}）`, g2.cuts === c0, `${c0}→${g2.cuts}`);
+    H2.fire(H2.board, 'pointerdown', H2.mkEv('pointerdown', { clientX: pt.x, clientY: pt.y, pointerType: 'mouse', isPrimary: true }));
+    H2.fire(H2.env, 'pointerup', H2.mkEv('pointerup', { clientX: pt.x, clientY: pt.y, pointerType: 'mouse' }));
+    await pump2(2);
+    ok(`对照：同一台窗口里 pointerdown 仍画一条（cuts ${c0}→${g2.cuts}）`, g2.cuts === c0 + 1, `${c0}→${g2.cuts}`);
+    if (H.env.__err) ok('回落路径无运行期报错', false, String(H.env.__err).split('\n')[0]);
+  }
+}
+
 console.log(`\nbehavior ${fails.length ? `${pass}/${pass + fails.length} 绿 —— 红：\n    ${fails.join('\n    ')}` : `${pass}/${pass} 绿`}`);
 process.exit(fails.length ? 1 : 0);

@@ -79,7 +79,7 @@ class El {
   requestFullscreen() { return Promise.resolve(); }
 }
 
-function boot(seed, patch) {
+function boot(seed, patch, opts = {}) {
   let rs = seed >>> 0;
   const lcg = () => { rs = (rs * 1103515245 + 12345) & 0x7fffffff; return rs / 0x7fffffff; };
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
@@ -161,6 +161,9 @@ function boot(seed, patch) {
     if (globalThis[k] !== undefined) env[k] = globalThis[k];
   }
   env.window = env; env.global = env; env.self = env; env.globalThis = env;
+  // 要判"回落只在没有 PointerEvent 的引擎里挂"这一条，就得能造一台声称支持 Pointer Events
+  // 的窗口：不挂 touch/mouse 才是对的，两边都挂会让一次点按画两遍（第二遍是擦掉）。
+  if (opts.pointerEvents) env.PointerEvent = function PointerEvent() {};
   const ctx = vm.createContext(env);
   // 装载顺序只有一个来源（loader.ORDER ← index.html 的 script src），内联块照文档顺序执行，
   // 与浏览器同一形状；patch 只换 CONTROL 指定的那一行。

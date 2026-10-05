@@ -864,6 +864,28 @@ el.canvas.addEventListener('pointercancel', onPointerUp);
 el.canvas.addEventListener('pointerleave', onPointerLeave);
 el.canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
+// 回落只挂在**根本没有 PointerEvent** 的引擎上（内嵌 webview 那一类）。条件是问窗口要的，
+// 不是 try/catch 造出来的：两边都挂的话，支持的引擎里一次点按会同时走到 pointerdown 与
+// mousedown，那条界就被画了两遍——而"画两遍"在这盘上意味着擦掉，落子直接反了。
+if (!('PointerEvent' in window)) {
+  // 坐标取自触点，preventDefault 必须打回**事件本身**：Touch 上没有这个方法，
+  // 照着 ev.preventDefault() 抄一句就会在落子第一下抛穿（实测 touchstart 画 0 条界）。
+  const wrap = (ev, point, pointerType) => ({
+    clientX: point.clientX, clientY: point.clientY, pointerType, button: 0, buttons: 1, isPrimary: true,
+    target: ev.target, preventDefault: () => ev.preventDefault(),
+  });
+  const first = (ev) => (ev.touches && ev.touches[0]) || (ev.changedTouches && ev.changedTouches[0]) || ev;
+  // passive:false 是给 touchstart/touchmove 的：默认 passive 下 preventDefault 会被忽略，
+  // 于是页面照旧滚动、还补一发 synthetic click，界画到一半被滚走。
+  el.canvas.addEventListener('touchstart', (ev) => onPointerDown(wrap(ev, first(ev), 'touch')), { passive: false });
+  el.canvas.addEventListener('touchmove', (ev) => onPointerMove(wrap(ev, first(ev), 'touch')), { passive: false });
+  el.canvas.addEventListener('touchend', onPointerUp);
+  el.canvas.addEventListener('touchcancel', onPointerUp);
+  el.canvas.addEventListener('mousedown', (ev) => onPointerDown(wrap(ev, ev, 'mouse')));
+  el.canvas.addEventListener('mousemove', (ev) => onPointerMove(wrap(ev, ev, 'mouse')));
+  window.addEventListener('mouseup', onPointerUp);
+}
+
 el.pad = {
   up: $('#btn-edge-up'),
   down: $('#btn-edge-down'),
