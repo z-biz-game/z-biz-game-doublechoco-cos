@@ -11,7 +11,7 @@
 //    从 0 起步会被"startedAt 为 0 表示没跑"这个哨兵吃掉第一帧，凭空造出一段假误差。
 //  * 这一局唯一的时间读数就是它。js/main.js 里不再留第二份 startedAt/baseElapsed。
 
-export class Session {
+class Session {
   constructor(now = () => Date.now()) {
     this.now = now;
     this.base = 0;

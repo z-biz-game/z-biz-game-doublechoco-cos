@@ -10,7 +10,8 @@
 //
 // 用法: node tools/behavior-test.mjs
 
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { loadGame, ORDER } from './loader.mjs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -27,9 +28,10 @@ function ok(name, cond, extra = '') {
 }
 const head = (s) => console.log(`\n${s}`);
 
-// ---- 桩：localStorage 与 AudioContext 必须在 import 之前挂好（模块顶层就用了它们）----
-
-globalThis.localStorage = {
+// ---- 桩：localStorage 与 AudioContext 要在装载之前就交给那份 window ----
+// js/store.js 与 js/audio/synth.js 的顶层就用到了它们，而 classic script 是在 vm 的那份
+// window 上跑的——往 node 的 globalThis 上挂一份，模块读不到（挂晚了也是同一个结果）。
+const localStorageStub = {
   _s: new Map(),
   getItem(k) { return this._s.has(k) ? this._s.get(k) : null; },
   setItem(k, v) { this._s.set(k, String(v)); },
@@ -62,13 +64,17 @@ class FakeCtx {
   suspend() { this.state = 'suspended'; return Promise.resolve(); }
   resume() { this.state = 'running'; return Promise.resolve(); }
 }
-globalThis.AudioContext = FakeCtx;
+const audioStub = FakeCtx;
 
-const { Session } = await import('../js/session.js');
-const { Anim, PULSE_SEC } = await import('../js/anim.js');
-const { Sound } = await import('../js/audio/synth.js');
-const { Store } = await import('../js/store.js');
-const { tierFor } = await import('../js/engine/tiers.js');
+// 装载走 tools/loader.mjs：与浏览器同一份形状（classic script + index.html 的文档顺序），
+// 只把 main.js 那一腿留在外面——它要真 DOM 与真窗口，那是 tools/scenarios.js 在浏览器里判的事。
+const load = (extra = {}) => loadGame({
+  files: extra.files || ORDER.filter((f) => !f.endsWith('main.js')),
+  env: { localStorage: extra.store || localStorageStub, AudioContext: audioStub },
+  patch: extra.patch,
+});
+const BASE = load().exports;
+const { Session, Anim, PULSE_SEC, Sound, Store, tierFor } = BASE;
 
 // ============================================================ 1. 一局只有一个时间源
 head('1. Session：暂停期间计时逐毫秒冻住（js/session.js 是唯一的时间源）');
@@ -162,16 +168,13 @@ ok('首帧满量、退到 0（alpha 单调不增）',
 }
 
 // ---- 阴性对照：把"仍在吃帧 dt 的那一行"改成常量，上面的对拍必须变红 ----
-const TMP = mkdtempSync(join(tmpdir(), 'dcc-anim-'));
-async function mutant(name, from, to) {
-  const s = (await import('node:fs')).readFileSync(src('js/anim.js'), 'utf8');
-  if (!s.includes(from)) { ok(`${name} 的靶行还在（${from}）`, false, '源码里没有这一行，靶行搬家了'); return null; }
-  const p = join(TMP, `${name}.mjs`);
-  writeFileSync(p, s.replace(from, to));
-  return import(pathToFileURL(p).href);
+// 变异体是**换掉一行再装一遍**，不是拿正则去读文本：改动的运行期后果（这一格 dt 之后
+// 回显什么时候退场）只有真跑一遍才量得到。
+function mutant(name, from, to) {
+  return load({ patch: { file: 'js/anim.js', from, to }, files: ['js/anim.js'] }).exports;
 }
 {
-  const mA = await mutant('mutant_t_fixed_dt', 'it.t += dt;', 'it.t += 1 / 60;');
+  const mA = mutant('mutant_t_fixed_dt', 'it.t += dt;', 'it.t += 1 / 60;');
   if (mA) {
     const runs = RATES.map((f) => runFrames(mA.Anim, f, 2400));
     const sp = spread(runs, 'alpha');
@@ -179,7 +182,7 @@ async function mutant(name, from, to) {
     ok(`负样本成立：把 it.t += dt 改成常量之后 alpha 跨度爆到 ${sp.worst.toFixed(3)}（>0.05 判红）`, sp.worst > 0.05);
     ok(`负样本成立：退场时刻随帧率分叉（${runs.map((r) => `${r.fps}Hz→${r.deathMs}ms`).join(' ')}）`, deaths.length === RATES.length);
   }
-  const mB = await mutant('mutant_time_fixed_dt', 'this.time += dt;', 'this.time += 1 / 60;');
+  const mB = mutant('mutant_time_fixed_dt', 'this.time += dt;', 'this.time += 1 / 60;');
   if (mB) {
     const runs = RATES.map((f) => runFrames(mB.Anim, f, 2400));
     const sp = spread(runs, 'time');
@@ -266,17 +269,17 @@ head('4. 存档：四个坏样本各自只丢那一条，纪录与游标不许�
     ['settings 是个字符串', '{"settings":"x","best":7}'],
   ];
   for (const [name, raw] of cases) {
-    globalThis.localStorage.setItem(Store.key, raw);
-    const m = await import(`../js/store.js?poison=${encodeURIComponent(name)}`);
+    const poison = { _s: new Map([[Store.key, raw]]), getItem(k) { return this._s.has(k) ? this._s.get(k) : null; }, setItem(k, v) { this._s.set(k, String(v)); }, removeItem(k) { this._s.delete(k); } };
+    const m = load({ store: poison, files: ['js/store.js'] }).exports;
     ok(`load() 遇到「${name}」回落默认（不抛、不清空成 undefined）`,
       m.Store.data && typeof m.Store.data.settings === 'object' && m.Store.data.settings.sound === true
       && m.Store.data.seedCounter === 1 && m.Store.data.resume === null);
   }
   // 好档要真能跨"重启"活下来：写进去 → 换一份模块实例读回来。
-  globalThis.localStorage.removeItem(Store.key);
+  localStorageStub.removeItem(Store.key);
   Store.data.resume = { tier: 'sho', seed: 7, R: tierFor('sho').R, C: tierFor('sho').C, gray: [...Array((tierFor('sho').R * tierFor('sho').C) / 2).keys()], nums: [[0, 2]], cells: '0'.repeat(tierFor('sho').R * (tierFor('sho').C - 1) + (tierFor('sho').R - 1) * tierFor('sho').C), cursor: 0, moves: 1, hints: 0, elapsedMs: 500 };
   Store.save();
-  const m2 = await import('../js/store.js?roundtrip=1');
+  const m2 = load({ files: ['js/store.js'] }).exports;
   ok('存档跨重启读得回来（setItem 与 getItem 成对，不是只写不读）',
     typeof m2.Store.data.resume === 'object' && m2.Store.data.resume.seed === 7);
 }

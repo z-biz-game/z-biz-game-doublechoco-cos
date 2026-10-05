@@ -17,9 +17,8 @@
 //     出题器据此写的数字就不属于任何合法解（这是本仓最早的一次判据红的根因）。
 //   - 同一个块不许发出两次，否则精确覆盖会把一个划分数成多解。
 
-import { connected, shapeKey } from './rules.js';
 
-export class EnumBudget extends Error {
+class EnumBudget extends Error {
   constructor(n, d, where) { super(`${where}超预算 ${n} > ${d}`); this.name = 'EnumBudget'; this.where = where; this.n = n; this.cap = d; }
 }
 
@@ -89,7 +88,7 @@ function connectedSubsets(cellsOfColor, nbrs, halfMax, C, ctx) {
 // 而在 CI 里设了它就更糟——同一号 seed 会因为环境换一个盘，"同一 seed 同一档同一盘"这句承诺当场作废。
 // 出厂预算的唯一来源是 tiers.js 的 CAP_WORK；要试别的预算（balance B6 就干了这件事）
 // 由调用方显式传 {capWork}，让换预算这件事在代码里看得见，而不是藏在一次 shell 赋值里。
-export function exactBlocks(B, { halfCap = 0, capWork = 400_000 } = {}) {
+function exactBlocks(B, { halfCap = 0, capWork = 400_000 } = {}) {
   const N = B.cells.length;
   if (N % 2) throw new Error(`R*C=${N} 为奇数：两半等量 ⇒ 每块偶数格 ⇒ 无解，直接拒`);
   const halfMax = halfCap > 0 ? halfCap : (N >> 1);   // 0 = 无上限（真实规则）
@@ -140,7 +139,7 @@ export function exactBlocks(B, { halfCap = 0, capWork = 400_000 } = {}) {
 
 // 数字自洽：V5（数字 = 该格自身颜色在块内的格数）+ V6（同块数字必须一致）。
 // 候选池在进入精确覆盖之前先过这一关，等价于把 V5/V6 编进搜索空间。
-export function blockNumOK(B, blk) {
+function blockNumOK(B, blk) {
   const gs = blk.filter(i => B.isGray(i)).length, ws = blk.length - gs;
   let v = null;
   for (const i of blk) {
@@ -152,7 +151,7 @@ export function blockNumOK(B, blk) {
   return true;
 }
 
-export function numFilter(B, blocks) {
+function numFilter(B, blocks) {
   const out = new Map();
   for (const [s, list] of blocks) out.set(s, list.filter(b => blockNumOK(B, b)));
   out.total = [...out.values()].reduce((a, v) => a + v.length, 0);

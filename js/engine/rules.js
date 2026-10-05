@@ -28,7 +28,7 @@ const D4 = [
 
 // 形状指纹：平移到左上角 + 排序。cells 是格子下标数组，C 是**这块盘**的列宽
 // （列宽写死会让 4x4 的盘按 6 列折叠，官方例题直接被判成死盘——踩过）。
-export function shapeKey(cells, C) {
+function shapeKey(cells, C) {
   const rc = cells.map(i => [Math.floor(i / C), i % C]);
   let best = '\uffff';
   for (const f of D4) {
@@ -40,12 +40,12 @@ export function shapeKey(cells, C) {
   return best;
 }
 
-export function congruent(a, b, C) {
+function congruent(a, b, C) {
   return a.length === b.length && shapeKey(a, C) === shapeKey(b, C);
 }
 
 // 边连通（4-邻接）
-export function connected(cells, nbrs) {
+function connected(cells, nbrs) {
   if (cells.length < 2) return cells.length === 1;
   const S = new Set(cells), seen = new Set([cells[0]]), stack = [cells[0]];
   while (stack.length) {
@@ -56,7 +56,7 @@ export function connected(cells, nbrs) {
 }
 
 // 条款号 → 原句。红要能点名是哪条、以及那句是谁写的。
-export const CLAUSES = {
+const CLAUSES = {
   V1a: 'Divide the grid into blocks（每格恰好属于一块）',
   V1b: 'Divide the grid into blocks（一格不能同时属于两块）',
   V2: 'blocks by drawing solid lines（区域必须连通）',
@@ -70,7 +70,7 @@ export const CLAUSES = {
 // 一个块的全部判据：返回违反项数组（项名以条款号开头）。
 // 出题器、计数器候选池、玩家界面用的是**同一份** clauses()，
 // 这样"数出来的唯一"和"界面上判对/判错"不会是两套规则。
-export function clauses(blk, B, bi) {
+function clauses(blk, B, bi) {
   const bad = [];
   const N = B.cells.length;
   const cells = [];
@@ -99,7 +99,7 @@ export function clauses(blk, B, bi) {
 }
 
 // 整盘划分判据：part = Map(cell -> gid)，gid<0 表示未归块。
-export function check(B, part) {
+function check(B, part) {
   const bad = [];
   const owner = new Map();
   const groups = new Map();
@@ -118,7 +118,7 @@ export function check(B, part) {
   return [...new Set(bad)];
 }
 
-export function mkBoard(R, C, graySet, nums = {}) {
+function mkBoard(R, C, graySet, nums = {}) {
   const cells = Array.from({ length: R * C }, (_, i) => i);
   const id = (r, c) => r * C + c;
   const nbrs = new Map(cells.map(i => [i, cells.filter(j => {
@@ -141,7 +141,7 @@ export function mkBoard(R, C, graySet, nums = {}) {
 //   数字：(0,0)=1 (0,2)=3 (1,3)=3 落在灰格，(2,3)=2 **落在白格**（白格中位亮度实测 255）
 //   ⇒ 订正：早期笔记写过"数字全落在灰格上"，那是错的；V5 按该格自身颜色取数，
 //     代码一直没错，错的是那句注释。
-export const OFFICIAL = {
+const OFFICIAL = {
   R: 4, C: 4,
   gray: new Set([[0, 0], [0, 2], [0, 3], [1, 0], [1, 3], [2, 2], [3, 1], [3, 2]]),
   num: { 0: 1, 2: 3, 7: 3, 11: 2 },
@@ -149,16 +149,16 @@ export const OFFICIAL = {
 
 // 官方解答的区界：从 Nikoli 页上那道例题的**解答图**逐边量出的 11 条粗实线还原的分区。
 // 这份 golden 是**图片**给的，不是我们计数器给的——两者必须各自独立成立再对得上。
-export const OFFICIAL_SOLUTION = 'AABB/CBBB/CBDD/EEDD';
+const OFFICIAL_SOLUTION = 'AABB/CBBB/CBDD/EEDD';
 
-export function blocksFromLabel(lab, C) {
+function blocksFromLabel(lab, C) {
   const map = new Map();
   lab.split('/').forEach((row, r) => [...row].forEach((ch, c) => map.set(ch, (map.get(ch) || []).concat(r * C + c))));
   return [...map.values()];
 }
 
 // 划分 → "AABB/CBBB/…" 的可读标签（只用于打印与 golden 比对）
-export function label(B, part) {
+function label(B, part) {
   return Array.from({ length: B.R }, (_, r) =>
     Array.from({ length: B.C }, (_, c) => {
       const g = part.get(r * B.C + c);
@@ -168,7 +168,7 @@ export function label(B, part) {
 
 // 同块关系（谁和谁在一块）：比较两个划分时用这个，不用 gid 标签——
 // gid 是枚举顺序的产物，同一划分两次跑可能给不同编号。
-export function eqRel(blocks) {
+function eqRel(blocks) {
   const s = new Set();
   for (const bl of blocks) for (let a = 0; a < bl.length; a++) for (let b = a + 1; b < bl.length; b++) {
     const [x, y] = bl[a] < bl[b] ? [bl[a], bl[b]] : [bl[b], bl[a]];
@@ -177,7 +177,7 @@ export function eqRel(blocks) {
   return s;
 }
 
-export const partitionToBlocks = part => {
+const partitionToBlocks = part => {
   const m = new Map();
   for (const [i, g] of part) { if (g == null || g < 0) continue; if (!m.has(g)) m.set(g, []); m.get(g).push(i); }
   return [...m.values()];

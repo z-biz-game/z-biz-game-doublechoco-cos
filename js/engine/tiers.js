@@ -15,10 +15,6 @@
 // 这条轴是本游戏的难度主轴（同一尺寸下 4×4：d=1.00 铅笔 2 轮、d=0 要 4 轮），
 // 所以阶梯不是只按边长爬——它按实测轮次爬。
 
-import { makePuzzle } from './generate.js';
-import { exactBlocks } from './blocks.js';
-import { mkBoard, partitionToBlocks } from './rules.js';
-import { judge } from './pencil.js';
 
 // 出厂的工作量预算：capWork = 一块底纹允许的 DFS 访问 + 同形配对次数上限。
 // 定在 40 万是量出来的，而那次测量现在就在闸里：`node tools/balance.mjs` 的 **B6** 每轮都拿同一批 seed
@@ -31,15 +27,15 @@ import { judge } from './pencil.js';
 // 这条预算不伤"无上限规则下唯一"：超出即 throw，绝不返回半池 ⇒ 出货那盘的池仍是完整池
 // （balance B3b 逐盘核对出货那块的枚举工作量确实留在预算内，也就是"没抛过 ⇒ 池是完整的"这一步有读数）。
 // 它伤的是另一句更弱的承诺——"所有底纹都算得起"，那句本仓就不承诺（见 OUT_OF_MENU 与 DESIGN）。
-export const CAP_WORK = 400_000;
+const CAP_WORK = 400_000;
 
 // 界面与闸共用的那一个"等多久"：按"换一局"到看见盘的等待上限。
 // 它是墙钟，所以只做**上界**判定（balance B4），绝不做档位顺序判定——
 // 中/高两档的出题 ms 中位实测只差 1–2 ms（B4 每轮打印相邻差），邻居进程就能把它拧倒。
 // 浏览器闸的等待也读这个数：一处改，两边一起改，红的时候才点得出同一句承诺。
-export const GEN_BUDGET_MS = 12_000;
+const GEN_BUDGET_MS = 12_000;
 
-export const TIERS = [
+const TIERS = [
   {
     key: 'sho', name: '初', R: 4, C: 4, density: 1.0,
     capWork: CAP_WORK, shades: 12, tilingsPerShade: 30, counterCap: 4000000,
@@ -70,14 +66,14 @@ export const TIERS = [
 // 页面上"实测推理 X 轮 / 数字 Y 个"这类读数只有一个来源：上面那条 gold 数组。
 // 中位取排序后的第 (n-1)/2 个（偶数长度取下中位），与 balance 用的口径是同一个函数。
 const srt = (a) => a.slice().sort((x, y) => x - y);
-export const tierMed = (t, k) => srt(t.gold[k])[Math.floor((t.gold[k].length - 1) / 2)];
-export const tierMax = (t, k) => Math.max(...t.gold[k]);
+const tierMed = (t, k) => srt(t.gold[k])[Math.floor((t.gold[k].length - 1) / 2)];
+const tierMax = (t, k) => Math.max(...t.gold[k]);
 
 // 不在菜单里的尺寸，每一档的理由都得是**这一页能自己验**的那种：
 //   - 奇面积是规则推出的无解（两半等量 ⇒ 每块偶数格 ⇒ 全盘偶数格），engine-test 第 6 段直接断言它被拒；
 //   - 10×10 是成本：tools/balance.mjs 的观测段每次真的去抽 8 盘并打印出货率与耗时，页面上这句
 //     理由背后有当场可复跑的读数，不是一次性探针里的数字。
-export const OUT_OF_MENU = [
+const OUT_OF_MENU = [
   {
     R: 5, C: 5, odd: true,
     why: '奇数格数的盘（5×5、7×7…）不在菜单里：一块 = 白 area + 同形灰 area ⇒ 每块偶数格 ⇒ 全盘必为偶数格。这是规则本身的结论，不是算力问题。',
@@ -88,12 +84,12 @@ export const OUT_OF_MENU = [
   },
 ];
 
-export const tierOf = (key) => TIERS.find((t) => t.key === key) || null;
-export const tierFor = (key) => tierOf(key) || TIERS[0];
+const tierOf = (key) => TIERS.find((t) => t.key === key) || null;
+const tierFor = (key) => tierOf(key) || TIERS[0];
 
 // 一张盘的完整出货：makePuzzle 的返回值 + 档位声明 + 可给界面用的读数。
 // null = 这一号 seed 出不了货；由调用方决定是报错还是往前推一号，绝不退回"用时间当 seed"。
-export function build(spec, seed) {
+function build(spec, seed) {
   const m = makePuzzle(spec.R, spec.C, seed, {
     density: spec.density,
     capWork: spec.capWork,
@@ -128,7 +124,7 @@ export function build(spec, seed) {
 //      这里返回 {ok,…} 而不是像 build() 那样返回 null，就是因为丢弃必须能点名是哪一条拒了。
 //   2) 重证比出题便宜得多：实测四档的续局重证都在个位到几十毫秒，而出题（含逐格挖数字的整轮判据）
 //      是几十到几百毫秒——成本口径见 proof（枚举 msCount + 铅笔 msP），它由台架打印，不写死在这里。
-export function rebuild(spec, bl, nums, seed = null) {
+function rebuild(spec, bl, nums, seed = null) {
   const gray = new Set(bl);
   const B = mkBoard(spec.R, spec.C, gray, Object.fromEntries(nums));
   let pool;

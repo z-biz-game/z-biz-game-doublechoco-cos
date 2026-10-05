@@ -15,19 +15,15 @@
 //   - 出货的每一盘都由 judge() 当场重证（计数器 exhaustive-1 + 铅笔推满 + check 0 违反 + 两者同解），
 //     生成过程中间态的 tiling 不直接当答案用（它是构造证据，不是判据来源）。
 
-import { mkBoard, eqRel, partitionToBlocks } from './rules.js';
-import { exactBlocks, numFilter, EnumBudget } from './blocks.js';
-import { judge } from './pencil.js';
-import { rng } from './rng.js';
 
-export function randomShading(R, C, rr) {
+function randomShading(R, C, rr) {
   const N = R * C;
   return new Set(rr.shuffle(Array.from({ length: N }, (_, i) => i)).slice(0, N / 2).sort((a, b) => a - b));
 }
 
 // 随机化精确覆盖：找这块底纹的一个合法分块（构造性保证"至少有一解"）。
 // bias: 'big' = 大块优先（数字值大、判别力强）；'rand' = 纯随机顺序。
-export function findTiling(B, blocks, rr, { bias = 'big', nodeCap = 40000 } = {}) {
+function findTiling(B, blocks, rr, { bias = 'big', nodeCap = 40000 } = {}) {
   const N = B.cells.length;
   const cover = new Uint8Array(N);
   const chosen = [];
@@ -64,7 +60,7 @@ export function findTiling(B, blocks, rr, { bias = 'big', nodeCap = 40000 } = {}
 // 耗时因此只在观测里报（ms/enumMs/digMs），不参与任何一次 continue/break；
 // 而 work（= 这块底纹真的做了多少次 DFS 访问 + 同形配对）是**确定**的成本读数，
 // 它和被放弃的底纹都记进来，所以"这一盘花了多少算力"是一个与机器速度无关的数。
-export function makePuzzle(R, C, seed, {
+function makePuzzle(R, C, seed, {
   density = 0, capWork = 400_000, shades = 8, tilingsPerShade = 30, cap = 400000,
   bias = 'big', independent = null, log = null,
 } = {}) {

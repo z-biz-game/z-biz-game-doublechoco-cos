@@ -75,7 +75,7 @@ function tone({ f0, f1 = f0, dur = 0.12, type = 'sine', gain = 0.22, delay = 0 }
 
 let voices = 0;
 
-export const Sound = {
+const Sound = {
   // 静音是**挂起上下文**，不是把 master 拧到 0：前者可以被外部读成 ctx.state === 'suspended'，
   // 后者只是让玩家以为没声音了，而振荡器还在建、表还在走。
   setMuted(v) {

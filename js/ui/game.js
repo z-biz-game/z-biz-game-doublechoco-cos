@@ -10,22 +10,17 @@
 //     唯一用答案的地方是"你画的这条界让这盘无解"的诊断——它报的是错误，不是答案。
 //
 // 档位表来自 js/engine/tiers.js（唯一来源）：菜单、页面读数、闸都读那一份，这里不再另列。
-import { partitionToBlocks, eqRel, mkBoard } from '../engine/rules.js';
-import { exactBlocks } from '../engine/blocks.js';
-import { pencil } from '../engine/pencil.js';
-import { TIERS, OUT_OF_MENU, tierOf, tierFor, build, rebuild, tierMed } from '../engine/tiers.js';
 
-export { TIERS, OUT_OF_MENU, tierOf, tierFor, build, rebuild, tierMed };
 
-export const OPEN = 0;    // 没画界：两格目前同属一个候选区域
-export const BORDER = 1;  // 画了界
+const OPEN = 0;    // 没画界：两格目前同属一个候选区域
+const BORDER = 1;  // 画了界
 
-export const segKey = (a, b) => (a < b ? `${a}-${b}` : `${b}-${a}`);
+const segKey = (a, b) => (a < b ? `${a}-${b}` : `${b}-${a}`);
 
 // 盘面内部的所有虚线段（相邻格之间的那条线）：横向 R*(C-1) + 纵向 (R-1)*C。
 // 顺序固定（先横后纵、按行），codes()/loadCodes() 与渲染器都按这个顺序索引，
 // 所以段表一变，存档字符串的语义就变了——这点写在 store 的 key 里（版本随格式走）。
-export function segmentTable(B) {
+function segmentTable(B) {
   const segs = [];
   for (const i of B.cells) for (const j of B.nbrs.get(i)) if (j > i) segs.push([i, j]);
   return segs;
@@ -37,12 +32,12 @@ export function segmentTable(B) {
 //   2) wantCuts 这个进度读数（还差几条界），
 //   3) "你画的界让这盘无解"时点名多余的那一条（报错误，不报下一步该怎么画）。
 // 胜负（B.check）与提示（pencilNow）都不看它，所以界面没有抄答案的后门。
-export function puzzleFromParts(spec, gray, nums, tiling, seed = null) {
+function puzzleFromParts(spec, gray, nums, tiling, seed = null) {
   const B = mkBoard(spec.R, spec.C, gray, nums);
   return { tier: spec.key, spec, B, gray, tiling, seed, stats: null, pool: exactBlocks(B, { capWork: spec.capWork }) };
 }
 
-export class Game {
+class Game {
   constructor(puzzle) {
     this.puzzle = puzzle;
     this.B = puzzle.B;

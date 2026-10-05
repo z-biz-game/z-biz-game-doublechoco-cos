@@ -23,10 +23,14 @@
 //
 // 用法：node tools/balance.mjs [每档样本数=8] [--pin]
 //   --pin 只打印 golden（并重写 tiers.js 里那四个数组），不做判定——数字要人来钉，不许程序自己改自己的考题。
-import { makePuzzle } from '../js/engine/generate.js';
-import { judge } from '../js/engine/pencil.js';
-import { TIERS, OUT_OF_MENU, tierMed, tierMax, GEN_BUDGET_MS } from '../js/engine/tiers.js';
+// 出题与判题都从仓内那一份引擎取（classic script，经 tools/loader.mjs 按文档顺序装载）：
+// 台账里的数字必须是玩家手上那个求解器量出来的，不是 node 侧另装的一份。
+import { loadGame, ORDER } from './loader.mjs';
 import { check as indCheck } from './independent.mjs';
+
+const ENGINE = ['rules.js', 'blocks.js', 'count.js', 'pencil.js', 'rng.js', 'generate.js', 'tiers.js'];
+const { makePuzzle, judge, TIERS, OUT_OF_MENU, tierMed, tierMax, GEN_BUDGET_MS } =
+  loadGame({ files: ORDER.filter((f) => ENGINE.some((e) => f.endsWith(e))) }).exports;
 
 const PIN = process.argv.includes('--pin');
 // 样本数不自由：golden 数组是按几号 seed 钉的，这一轮就得抽几个。CI 里 `node tools/balance.mjs`

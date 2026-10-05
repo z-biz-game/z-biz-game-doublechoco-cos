@@ -7,14 +7,16 @@
 // 用法：node tools/engine-test.mjs [每档样本数=8]
 //   默认 8 与 tiers.js 的 gold 同口径（balance B3 是按连续 8 号 seed 钉的）；
 //   样本数调大照样对账前 8 号，调小则**跳过**对账并说明原因（口径不同，不是回归）。
-import { mkBoard, OFFICIAL, OFFICIAL_SOLUTION, blocksFromLabel, label, eqRel, partitionToBlocks, clauses, check as engCheck, connected } from '../js/engine/rules.js';
-import { exactBlocks, numFilter, blockNumOK } from '../js/engine/blocks.js';
-import { count } from '../js/engine/count.js';
-import { pencil, judge } from '../js/engine/pencil.js';
-import { makePuzzle, randomShading } from '../js/engine/generate.js';
-import { rng } from '../js/engine/rng.js';
+// js/ 是 classic script（浏览器与官方量具按 index.html 的标签顺序装载），node 这边由
+// tools/loader.mjs 走同一条路：同一份 vm context 里按同一个顺序跑完，再把顶层名字交回来。
+// 这里只取引擎那七份——它们不碰 DOM，装得快，且"引擎能单独装载"本身就是这条腿存在的理由。
+import { loadGame, ORDER } from './loader.mjs';
 import { check as indCheck, brutePool, poolKeys } from './independent.mjs';
-import { TIERS } from '../js/engine/tiers.js';
+
+const ENGINE = ['rules.js', 'blocks.js', 'count.js', 'pencil.js', 'rng.js', 'generate.js', 'tiers.js'];
+const { mkBoard, OFFICIAL, OFFICIAL_SOLUTION, blocksFromLabel, label, eqRel, partitionToBlocks,
+  clauses, check: engCheck, connected, exactBlocks, numFilter, blockNumOK, count, pencil, judge,
+  makePuzzle, randomShading, rng, TIERS } = loadGame({ files: ORDER.filter((f) => ENGINE.some((e) => f.endsWith(e))) }).exports;
 
 // 默认 8 与 tiers.js 的 gold 同口径（gold 是按连续 8 号 seed 钉的）；跑更大样本也照样对账前 8 号。
 const SAMPLES = Number(process.argv[2] || 8);

@@ -5,7 +5,7 @@
 // 判据 V3 数的就是这两种颜色的格数，所以"哪一格是灰的"必须在像素上一眼分得开——
 // 灰白之间的对比不能靠 alpha 蒙出来，那会让半盘灰看着像半盘白加了一层雾。
 
-export const Palette = {
+const Palette = {
   bgTop: '#0A0D14',
   bgBottom: '#141A26',
   surface: '#111722',
@@ -51,17 +51,17 @@ export const Palette = {
   regionFill: 'rgba(123,184,255,0.14)',
 };
 
-export const Space = { page: 20, card: 16, inner: 12, gutter: 10 };
-export const Radius = { card: 18, button: 12, chip: 8, cell: 4 };
+const Space = { page: 20, card: 16, inner: 12, gutter: 10 };
+const Radius = { card: 18, button: 12, chip: 8, cell: 4 };
 
-export const Font = {
+const Font = {
   title: "700 24px/1.25 -apple-system, 'SF Pro Display', system-ui, sans-serif",
   mono: "'SF Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
   sans: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', system-ui, sans-serif",
 };
 
 // 时长守 150–350ms：比这更长会挡住下一次动作，而这一局玩家下一步就在毫秒之后。
-export const Motion = {
+const Motion = {
   tap: 150,
   base: 220,
   pop: 260,
@@ -71,13 +71,13 @@ export const Motion = {
   ease: 'cubic-bezier(0.22, 0.61, 0.36, 1)',
 };
 
-export const Cell = { min: 30, max: 68, numScale: 0.44, borderScale: 0.13, dotScale: 0.045 };
+const Cell = { min: 30, max: 68, numScale: 0.44, borderScale: 0.13, dotScale: 0.045 };
 
 // 命中容差：一个段只在其法线方向 ±hitRatio·cell 内可点。
 // 太宽会把"点格子选光标"吃掉，太窄在 8×8（格子约 34px）上根本点不到。
-export const Hit = { segRatio: 0.26, maxCell: 0.46 };
+const Hit = { segRatio: 0.26, maxCell: 0.46 };
 
-export function applyThemeVars() {
+function applyThemeVars() {
   const root = document.documentElement.style;
   const kebab = (s) => s.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());
   for (const [k, v] of Object.entries(Palette)) {
@@ -98,11 +98,11 @@ export function applyThemeVars() {
 // 系统偏好是下限，游戏内开关只能往上加：OS 设了"减少动效"时不该被页面上的开关否决。
 let motionReduced = false;
 
-export function setReduceMotion(v) {
+function setReduceMotion(v) {
   motionReduced = !!v;
 }
 
-export const systemPrefersReducedMotion = () =>
+const systemPrefersReducedMotion = () =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export const prefersReducedMotion = () => motionReduced || systemPrefersReducedMotion();
+const prefersReducedMotion = () => motionReduced || systemPrefersReducedMotion();

@@ -8,7 +8,7 @@
 //   !exhaustive & stop==cap    ⇒ 预算耗尽：**不能对外说"唯一"**（本仓把它当判据红）
 // 这一条是 farm 的老坑（"超预算"被当成"变强"）：这里 stop=='cap' 一律不绿。
 
-export function count(B, blocks, { cap = 200000, maxSol = 2, order = 'mrv' } = {}) {
+function count(B, blocks, { cap = 200000, maxSol = 2, order = 'mrv' } = {}) {
   const N = B.cells.length;
   const flat = [];
   const contains = Array.from({ length: N }, () => []);
@@ -71,7 +71,7 @@ export function count(B, blocks, { cap = 200000, maxSol = 2, order = 'mrv' } = {
 // 挑格启发式的对照：同一盘、同一池、两种 order 各跑一遍，节点数必须一致或都穷尽。
 // （撞预算时先怀疑自己的搜索顺序，不先怀疑"成本无界"——上一轮 Sashigane 10x10 就是
 //  行序 200M 节点 vs MRV 1,637。）
-export function countBoth(B, blocks, cap) {
+function countBoth(B, blocks, cap) {
   const a = count(B, blocks, { cap, maxSol: 2, order: 'row' });
   const b = count(B, blocks, { cap, maxSol: 2, order: 'mrv' });
   return { row: a, mrv: b };

@@ -2,7 +2,7 @@
 //   1) 确定性必须跨引擎成立：随机性只放在**置换**里，不放在比较器里。
 //      sort 的比较器里抽随机数会让 node 和 chrome 画出两张不同的盘，"同一 seed 同一盘"就是谎。
 //   2) 默认 seed 不能按日期/时间算：那会让界面上印着的 seed 明天就对不上号（存档里带游标）。
-export function rng(seed) {
+function rng(seed) {
   let a = (seed >>> 0) || 1;
   const next = () => {
     a = (a + 0x6d2b79f5) >>> 0;

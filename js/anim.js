@@ -11,10 +11,10 @@
 // 帧率无关的写法只有一种：所有量都是 `x += v * dt`。这里没有粒子，被积的分钟
 // 是每条回显自己的寿命 it.t 与总时钟 this.time；两者都只吃 dt，不吃帧数。
 
-export const PULSE_SEC = 1.6;      // 落子回显的寿命（与原先那句 setTimeout(1600) 同值，改的是实现）
+const PULSE_SEC = 1.6;      // 落子回显的寿命（与原先那句 setTimeout(1600) 同值，改的是实现）
 const MAX_DT = 0.05;               // 一帧最多算 50ms：切后台回来那一大跳不该把回显整条吞掉
 
-export class Anim {
+class Anim {
   // reduced 是一个**取值函数**而不是一个布尔：系统偏好可以在运行中改，
   // 而这一份时钟不该为了知道这件事去 import DOM。
   constructor({ reduced = () => false, nowMs = 0 } = {}) {

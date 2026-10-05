@@ -18,11 +18,8 @@
 //   X1 无处可放 ⇒ contradiction；X2 计数溢出 ⇒ contradiction
 // 输出：solved / forced / total / contradiction / rules(每条开火次数) / partition / trace / steps
 
-import { partitionToBlocks } from './rules.js';
-import { exactBlocks, numFilter, blockNumOK } from './blocks.js';
-import { count } from './count.js';
 
-export const RULE_TEXT = {
+const RULE_TEXT = {
   N1_数字定大小: '数字 v 钉死了这一块必须 2v 格',
   N2_异数不共块: '两个不同的数字不可能在同一块 ⇒ 它们之间画界',
   N3_同色计数: '数字数的是**该格自身颜色**在本块里的格数',
@@ -38,7 +35,7 @@ export const RULE_TEXT = {
 
 const SEG = (i, j) => (i < j ? `${i}-${j}` : `${j}-${i}`);
 
-export function pencil(B, { blocksAll = null, capWork = 400_000 } = {}) {
+function pencil(B, { blocksAll = null, capWork = 400_000 } = {}) {
   const pool = blocksAll || exactBlocks(B, { capWork });
   const blocksNum = numFilter(B, pool);
   const N = B.cells.length;
@@ -252,7 +249,7 @@ export function pencil(B, { blocksAll = null, capWork = 400_000 } = {}) {
 //   ② 铅笔推满（零猜测）
 //   ③ 铅笔分区过整盘判据 check（另一套实现 independent 也过）
 //   ④ 铅笔分区 == 计数器唯一解（按同块关系比，不按 gid）
-export function judge(B, blocksAll, { cap = 400000, independent = null } = {}) {
+function judge(B, blocksAll, { cap = 400000, independent = null } = {}) {
   const ta = Date.now();
   const r = count(B, numFilter(B, blocksAll), { cap, maxSol: 2, order: 'mrv' });
   const msCount = Date.now() - ta;

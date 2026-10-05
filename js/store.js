@@ -133,7 +133,7 @@ function load() {
   }
 }
 
-export const Store = {
+const Store = {
   data: load(),
   key: KEY,
 

@@ -12,12 +12,14 @@
 //      重证出的块表、推理轮数必须与出题时逐值相同，改过的数字必须被当场拒。
 // 坐标一律要求有限数：canvas 遇到 NaN 不报错，只是什么都不画，那正是"看着对、界没画"的形态。
 
+// 与浏览器同一份装载形状：classic script + 文档顺序（tools/loader.mjs），这里取到 render/board.js
+// 为止的十四份，main.js 那一腿留给浏览器与真浏览器闸（它要 DOM 与窗口）。
 import { readFileSync } from 'node:fs';
-import { OFFICIAL, OFFICIAL_SOLUTION, blocksFromLabel, eqRel } from '../js/engine/rules.js';
-import { TIERS, tierFor, build, rebuild, GEN_BUDGET_MS } from '../js/engine/tiers.js';
-import { Game, puzzleFromParts, BORDER, OPEN, segKey, segmentTable } from '../js/ui/game.js';
-import { BoardView, layoutFor } from '../js/render/board.js';
-import { Cell, Hit, Palette } from '../js/theme.js';
+import { loadGame, ORDER } from './loader.mjs';
+
+const { OFFICIAL, OFFICIAL_SOLUTION, blocksFromLabel, eqRel, TIERS, tierFor, build, rebuild,
+  GEN_BUDGET_MS, Game, puzzleFromParts, BORDER, OPEN, segKey, segmentTable, BoardView, layoutFor,
+  Cell, Hit, Palette } = loadGame({ files: ORDER.filter((f) => !f.endsWith('main.js')), env: { devicePixelRatio: 2 } }).exports;
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -88,7 +90,8 @@ function makeCanvas(w, h) {
   return { canvas, rec };
 }
 
-global.window = { devicePixelRatio: 2 };
+// dpr 的桩挪进去装载器了（下面 loadGame 的 env）：js/render/board.js 现在跑在 vm 的 window 上，
+// 再往 node 的 globalThis 上挂一份就是挂给一个没人读的窗口。
 
 // "每条该画的界都有具名证人"——hint() 落子前要在 trace 里找到跨越同两个类的那次规则开火，
 // 找不到就不落子。这一条如果被破坏，卡住的地方会分不清是"推不动"还是"证人没找到"，

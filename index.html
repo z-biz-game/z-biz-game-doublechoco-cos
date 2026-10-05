@@ -178,12 +178,12 @@
           <div class="stat"><span>步数</span><b id="stat-moves" class="mono">0</b></div>
           <div class="stat"><span>提示</span><b id="stat-hints" class="mono">0</b></div>
           <div class="stat"><span>已画区界</span><b id="stat-cuts" class="mono">0/0</b></div>
-          <div class="stat"><span>待画区界</span><b id="stat-remaining" class="mono">0</b></div>
-          <div class="stat"><span>已分出块</span><b id="stat-regions" class="mono">0/0</b></div>
-          <div class="stat"><span>违反条款</span><b id="stat-conflicts" class="mono">0</b></div>
+          <div class="stat" id="stat-remaining-box"><span>待画区界</span><b id="stat-remaining" class="mono">0</b></div>
+          <div class="stat" id="stat-regions-box"><span>已分出块</span><b id="stat-regions" class="mono">0/0</b></div>
+          <div class="stat" id="stat-conflicts-box"><span>违反条款</span><b id="stat-conflicts" class="mono">0</b></div>
           <div class="stat"><span>题面数字</span><b id="stat-nums" class="mono">0/0</b></div>
           <!-- 难度实测 = 这一盘出货时 judge() 量到的铅笔轮数（不是档位中位数）；续局没有出题过程，报"—"。 -->
-          <div class="stat"><span>难度实测</span><b id="stat-score" class="mono">—</b></div>
+          <div class="stat" id="stat-score-box"><span>难度实测</span><b id="stat-score" class="mono">—</b></div>
           <div class="stat"><span>这一局耗时</span><b id="stat-genms" class="mono">—</b></div>
         </div>
 
@@ -214,7 +214,28 @@
   </footer>
 </div>
 
-<script type="module" src="js/main.js"></script>
+<!-- classic script，按依赖拓扑序装载：这一份顺序就是 js/ 里那张模块图的拓扑序，
+     也是官方量具（cos_load_sweep.js / cos_frame_probe.js）读文档顺序去装载的顺序——它们按文档
+     顺序以 classic script 执行这些 src，写成 type="module" 会在第一行 import 上 SyntaxError，
+     整个关卡内对拍就此变成"无法比对"。另一个理由是 file://：浏览器对 file:// 上的 module
+     script 一律按 CORS 拦死，而这一仓承诺双击 index.html 就能玩。
+     顶层名全部落在同一个 global lexical scope（15 份里无重名，tools/loader.mjs 每次都校验）。
+     注：这段注释里不许出现尖括号形式的 script 字面量——量具的正则会把注释读成一个块的开头。 -->
+<script src="js/theme.js"></script>
+<script src="js/anim.js"></script>
+<script src="js/session.js"></script>
+<script src="js/store.js"></script>
+<script src="js/audio/synth.js"></script>
+<script src="js/engine/rules.js"></script>
+<script src="js/engine/blocks.js"></script>
+<script src="js/engine/count.js"></script>
+<script src="js/engine/pencil.js"></script>
+<script src="js/engine/rng.js"></script>
+<script src="js/engine/generate.js"></script>
+<script src="js/engine/tiers.js"></script>
+<script src="js/ui/game.js"></script>
+<script src="js/render/board.js"></script>
+<script src="js/main.js"></script>
 <script>
 // 离线壳的注册。三条都是实测出来的口径：
 //  * file:// 下**整段跳过**且不抛未捕获异常——这一仓要能被直接双击 index.html 打开玩，

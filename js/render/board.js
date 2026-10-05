@@ -12,17 +12,15 @@
 // 点线与粗实线都跨在两种底色上（灰格与白格相邻时），所以同一段的左半与右半各用自己的颜色，
 // 靠 clip 到各自格子实现——一条线一个颜色时，总有一半会沉进底色里看不见。
 
-import { Palette, Cell, Radius, Font, Hit } from '../theme.js';
-import { BORDER, segKey } from '../ui/game.js';
 
-export function layoutFor(R, C, availW, availH) {
+function layoutFor(R, C, availW, availH) {
   const pad = 8; // 区界只画在盘内部，格外不需要留写字的地方
   const size = Math.max(0, Math.min((availW - pad * 2) / C, (availH - pad * 2) / R));
   const cell = Math.max(Cell.min, Math.min(Cell.max, Math.floor(size)));
   return { cell, boardW: cell * C, boardH: cell * R, pad };
 }
 
-export class BoardView {
+class BoardView {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');

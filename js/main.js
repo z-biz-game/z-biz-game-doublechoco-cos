@@ -8,29 +8,32 @@
 // 玩家唯一的落子是**两格之间画不画界**，所以这个文件里没有"往格子里写数字"这条控制流：
 // 一次动作 = 一个段号 k + 一个目标态（BORDER/OPEN），指针与键盘都只走 toggleSeg/toggleDir 这两个入口。
 
-import { Palette, Cell, Hit, applyThemeVars, setReduceMotion, systemPrefersReducedMotion, prefersReducedMotion } from './theme.js';
-import { Sound } from './audio/synth.js';
-import { Store } from './store.js';
-import { Session } from './session.js';
-import { Anim, PULSE_SEC } from './anim.js';
-import * as Rules from './engine/rules.js';
-import * as Blocks from './engine/blocks.js';
-import * as Gen from './engine/generate.js';
-import { count } from './engine/count.js';
-import { pencil, judge, RULE_TEXT } from './engine/pencil.js';
-import { rng } from './engine/rng.js';
 // 档位表唯一的来源：js/engine/tiers.js。TIERS 的每一档、它的尺寸、gold 里实测的数字个数与
 // 推理轮次、以及"哪些尺寸不在菜单里"都由这一份给，本文件不再另列清单。
-import { TIERS, tierOf, tierFor, tierMed, tierMax, OUT_OF_MENU, CAP_WORK, GEN_BUDGET_MS, build, rebuild } from './engine/tiers.js';
-import { BoardView } from './render/board.js';
-import { Game, puzzleFromParts, BORDER, OPEN, segKey } from './ui/game.js';
+
+// classic script 没有 `import * as` 这一形，而测试面（下面 window.dc.engine 的展开）要的就是
+// "整个模块的对外名单"。所以这三份名单在这里显式列出来：键必须与各模块原本的 export 逐字对齐，
+// 少一个就是闸读不到、多一个就是闸读到的不是玩家用到的那一份。
+const Rules = {
+  shapeKey, congruent, connected, CLAUSES, clauses, check, mkBoard,
+  OFFICIAL, OFFICIAL_SOLUTION, blocksFromLabel, label, eqRel, partitionToBlocks,
+};
+const Blocks = { EnumBudget, exactBlocks, blockNumOK, numFilter };
+const Gen = { randomShading, findTiling, makePuzzle };
 
 const VERSION = '1.0.0';
 // 每个文档一个身份：片段跳转不换文档，所以这一个身份在 hash 导航后必须还在、
 // 真重载后必须消失。它是"续局这一腿跑在新文档里"的证人之一。
 const DOC = 'doc' + Math.random().toString(36).slice(2, 10);
 
-const $ = (sel) => document.querySelector(sel);
+// `#id` 走 getElementById：文档里 id 唯一，两种写法在浏览器里拿到的是同一件东西，但只有这一条
+// 路在"按 id 索引元素"的宿主桩里也能被同一个对象接住——querySelector 在那类桩里每次返回一个新
+// 元素，绑在它上面的监听器就成了没人能敲响的门（官方量具的注入因此一次都落不到盘上）。
+const $ = (sel) => {
+  const id = typeof sel === 'string' && sel[0] === '#' ? sel.slice(1) : null;
+  if (id && /^[\w-]+$/.test(id)) return document.getElementById(id) || document.querySelector(sel);
+  return document.querySelector(sel);
+};
 const el = {
   viewMenu: $('#view-menu'),
   viewGame: $('#view-game'),
@@ -51,6 +54,13 @@ const el = {
   regions: $('#stat-regions'),
   conflicts: $('#stat-conflicts'),
   score: $('#stat-score'),
+  // 这四张卡的外层：以前是靠 closest('.stat') 往上爬一层拿的，现在容器自己具名，
+  // 读数与切 .bad 都直接打到目标上（任何按 id 取元素的测试桩也因此能覆盖到这一路）。
+  remainingBox: $('#stat-remaining-box'),
+  regionsBox: $('#stat-regions-box'),
+  conflictsBox: $('#stat-conflicts-box'),
+  scoreBox: $('#stat-score-box'),
+
   nums: $('#stat-nums'),
   genms: $('#stat-genms'),
   hintRule: $('#hint-rule'),
@@ -168,9 +178,14 @@ async function withBusy(label, fn) {
 }
 
 function availBox() {
-  const narrow = window.innerWidth <= 900;
-  const w = narrow ? window.innerWidth - 40 : el.viewGame.clientWidth - 340;
-  return { w: Math.max(240, w), h: Math.max(240, window.innerHeight - 260) };
+  // 三个来源都可能是 NaN：clientWidth 在一个还没有布局的读者手里是 undefined（视图藏着时是 0），
+  // innerWidth/innerHeight 在没有窗口的宿主里同理。NaN 一路乘进 canvas.width 与 layout，
+  // 盘面几何就整片变成 NaN——hitSegment 从此恒判空，看起来像"点击没反应"。
+  const px = (v) => (Number.isFinite(v) && v > 0 ? v : 0);
+  const vw = px(window.innerWidth), vh = px(window.innerHeight);
+  const narrow = vw > 0 && vw <= 900;
+  const w = narrow ? vw - 40 : px(el.viewGame.clientWidth) - 340;
+  return { w: Math.max(240, w), h: Math.max(240, vh - 260) };
 }
 
 function draw() {
@@ -208,11 +223,11 @@ function syncStats() {
   el.nums.textContent = `${st.nums}/${st.cells}`;
   // 难度实测读的是**这一盘**出货时量到的铅笔轮数；续局没有出题过程，就报"—"，不编一个数。
   el.score.textContent = st.boardSteps === null ? `—（本档中位 ${st.medSteps} 轮）` : `${st.boardSteps} 轮`;
-  el.score.closest('.stat').dataset.steps = st.boardSteps === null ? '' : String(st.boardSteps);
+  el.scoreBox.dataset.steps = st.boardSteps === null ? '' : String(st.boardSteps);
   el.genms.textContent = st.genMs ? `${st.genMs} ms` : '—（续局）';
-  el.conflicts.closest('.stat').classList.toggle('bad', st.conflicts > 0);
-  el.remaining.closest('.stat').classList.toggle('bad', st.status !== 'won' && st.remaining > 0);
-  el.regions.closest('.stat').classList.toggle('bad', st.status !== 'won' && st.regions !== st.regionsTotal);
+  el.conflictsBox.classList.toggle('bad', st.conflicts > 0);
+  el.remainingBox.classList.toggle('bad', st.status !== 'won' && st.remaining > 0);
+  el.regionsBox.classList.toggle('bad', st.status !== 'won' && st.regions !== st.regionsTotal);
   const first = st.conflicts ? game.errs[0] : '';
   el.stateLine.textContent = notice
     ? notice
@@ -245,7 +260,10 @@ function syncPad() {
       btn.dataset.seg = '';
       // 按下态是**那一条段**的属性，不是这只键的。光标走到盘边之后这一段已经不存在了，
       // 留着上一次的 aria-pressed="true" 就等于对着"没有相邻的格"这句话亮着一盏已画界灯。
-      btn.removeAttribute('aria-pressed');
+      // 写成显式的 'false' 而不是把属性摘掉：摘掉之后这只键在读屏里从"开关"降级成"普通按钮"，
+      // 每一次走到盘边都在换它的角色；而 disabled + aria-pressed="false" 说的是同一句
+      // "此处无界可画"，样式（button[aria-pressed='true']）与读屏两头都不必为它开特例。
+      btn.setAttribute('aria-pressed', 'false');
       continue;
     }
     const k = game.segIx.get(segKey(game.cursor, to));
@@ -275,7 +293,7 @@ const flash = (seg, color, life = PULSE_SEC) => {
 
 // 暂停与玩法浮层是同一类东西：**这一局暂时不由你落子**。所以这道门读两处会话态，
 // 而不是只读 session.paused——浮层盖着盘还能用键盘落子，那浮层就只是个装饰。
-const blocked = () => !game || game.status === 'won' || !!busy || session.paused || !el.howtoVeil.hidden;
+const blocked = () => !game || game.status === 'won' || !!busy || session.paused || howtoOpen;
 
 function showHint(info) {
   if (!info) return;
@@ -380,8 +398,15 @@ function toggleFullscreen() {
   return syncFullscreen();
 }
 
+// 玩法浮层开没开：这一份布尔是状态，el.howtoVeil.hidden 是它的镜像。
+// 以前反过来读 DOM 当状态源（setHowto() 与 blocked() 都在问 hidden），于是任何不在真浏览器里
+// 跑的读者——node 侧的闸、官方量具的元素桩——拿到的都是 undefined，`!undefined` 恒为真，
+// blocked() 就把每一次点击与每一次按键全判成"浮层挡着"，关卡内物理一步都走不动。
+let howtoOpen = false;
+
 function setHowto(on) {
-  const want = on === undefined ? el.howtoVeil.hidden : !!on;
+  const want = on === undefined ? !howtoOpen : !!on;
+  howtoOpen = want;
   el.howtoVeil.hidden = !want;
   el.btnHowto.setAttribute('aria-pressed', String(want));
   return want;
@@ -578,6 +603,35 @@ async function begin({ tier = 'sho', seed = null, resume = null } = {}) {
       return null;
     }
   }
+  return openPuzzle(puzzle, resume);
+}
+
+// 同步开局：与 begin() 用同一份 build() 出题、同一个 openPuzzle() 落盘，唯一的区别是不给
+// busy 浮层让帧。浮层是给"人眼等得起"那条路用的；而程序化入口与量具要的是——调用返回时
+// 这一局已经在盘上了。seed 缺省照旧取存档游标（peekSeed），页面上印的 seed 因此还是真话。
+function startLevel(opts = {}) {
+  const { tier = TIERS[0].key, seed = null } = typeof opts === 'object' && opts ? opts : {};
+  const spec = tierFor(typeof opts === 'number' ? ((TIERS[opts] || TIERS[0]).key) : tier);
+  let request = seed;
+  if (request === null || !Number.isInteger(request)) request = Store.peekSeed();
+  let probe = request;
+  let puzzle = null;
+  for (let k = 0; k < 5 && !puzzle; k++) {
+    puzzle = build(spec, probe);
+    if (!puzzle) probe++;
+  }
+  if (!puzzle) {
+    announce(`这一档连着 5 号 seed 都没出货（${spec.name} ${spec.R}×${spec.C}），换一档试试。`);
+    return null;
+  }
+  return openPuzzle(puzzle, null);
+}
+
+// 题面到手之后的"落盘"只有一处实现。begin() 是玩家那一腿（出题要给 busy 浮层让帧，所以是
+// async），startLevel() 是程序化入口（同步），两条都汇进这里。它是 begin 的尾巴时，
+// "开局"在仓里有两种形状；抽出来之后 anim.reset() / session.start() / writeHash() 这套
+// 复位只有一份写法——漏一处就是上一局的耗时渗进这一局的纪录，而这种漏要玩到第二局才看得见。
+function openPuzzle(puzzle, resume = null) {
   game = new Game(puzzle);
   // 换一局 = 回显与计时一起从零：anim 里留着上一局的脉冲、或 session 里留着上一局的耗时，
   // 都会变成"这一局"的读数——纪录与屏幕上的 00:00 从此各说一套。
@@ -613,7 +667,12 @@ async function begin({ tier = 'sho', seed = null, resume = null } = {}) {
 function writeHash() {
   if (!game) return;
   const h = `#t=${game.puzzle.tier}&s=${game.puzzle.seed}`;
-  if (location.hash !== h) history.replaceState(null, '', h);
+  if (location.hash === h) return;
+  // file:// 的文档 origin 是 'null'，replaceState 在那儿直接抛 SecurityError，而这一仓承诺
+  // 双击 index.html 就能玩：hash 是深链糖，不是玩法状态（盘面、耗时、纪录全在存档里）。
+  // 所以写不上就是不写，绝不退化成去动 location.hash ——那会触发 hashchange，
+  // 把 begin() 再叫一次，等于为了一个装饰把自己的局重开掉。
+  try { history.replaceState(null, '', h); } catch (err) { /* 深链糖在 file:// 下失效，玩法不受影响 */ }
 }
 
 // 只认这一种形状：#t=<档>&s=<seed>。其余的 hash（例如闸里用来证明"片段导航不是重载"的
@@ -625,7 +684,13 @@ function parseHash() {
   return { tier: m[1], seed: Number.isInteger(seed) && seed >= 1 ? seed : null };
 }
 
+// 当前显示的是哪一视图（'menu' / 'game'）。以前这件事只写在 DOM 上（两个视图的 hidden），
+// 问"现在在不在局里"就得反过来读 el.viewMenu.hidden ——那是把界面当状态源。这一份是同一件事
+// 的正名，唯一的写入点就是下面这一行。
+let screen = 'menu';
+
 function show(which) {
+  screen = which;
   el.viewMenu.hidden = which !== 'menu';
   el.viewGame.hidden = which !== 'game';
   if (which === 'menu') {
@@ -876,13 +941,13 @@ window.addEventListener('keydown', (ev) => {
     return;
   }
   if (k === 'Escape') {
-    if (!el.howtoVeil.hidden) setHowto(false);
+    if (howtoOpen) setHowto(false);
     else if (session.paused) setPaused(false);
     keys.handled++;
     return;
   }
   if (k === 'Enter' && !onCtrl(ev)) {
-    if (!el.howtoVeil.hidden) setHowto(false);
+    if (howtoOpen) setHowto(false);
     else if (session.paused) setPaused(false);
     else if (!inGame) begin({ tier: TIERS[0].key });
     keys.handled++;
@@ -1002,7 +1067,7 @@ window.dc = {
   anim: () => ({ ...anim.state(), raf: rafId, reduced: prefersReducedMotion() }),
   fullscreen: () => !!(document.fullscreenElement || document.webkitFullscreenElement),
   toggleFullscreen,
-  howto: () => !el.howtoVeil.hidden,
+  howto: () => howtoOpen,
   setHowto,
   // 真静音的四个证人：设定态、会话 hold、上下文状态、振荡器计数（静音态下必须一个都不建）。
   sound: () => ({ muted: Sound.isMuted(), held: Sound.held(), ctx: Sound.ctxState(), voices: Sound.voices() }),
@@ -1050,3 +1115,56 @@ window.dc = {
     doc: DOC,
   },
 };
+
+// ---- 关卡内三档对拍要读的那一份状态：平铺挂在 window 上，取值全部现从三份真状态里取 ----
+//
+// 三条口径，都是实测出来的：
+//  * 这里不留第二份可写的分钟。elapsedMs 走 session、animTime/pulses 走 anim、盘面计数走 game，
+//    每一个都是现取——留一份副本就是第四个时间源，对拍会量到副本自己。
+//  * 只挂对**虚拟时长**敏感的量，帧计数一个都不挂（anim.frames、rafId 都不在这里）。它们按帧率
+//    线性放大：30/60/120Hz 下 90/180/360，挂上去就是让尺把"采样率"读成"玩法推进"，凭空判红——
+//    §3 把"仅帧计数"列成不通过，说的就是这件事。
+//  * 相位只由 state 这一个键承担，而且互斥：菜单/暂停/通关都写成尺认得的词，绝不与 'playing'
+//    同时出现。两个相位词并存会让判据退化成 UNKNOWN，那正是"仅标题态"洗不白的那一支。
+window.DoubleChoco = {
+  get state() {
+    if (screen !== 'game' || !game) return 'menu';
+    if (game.status === 'won') return 'win';
+    return session.paused ? 'pause' : 'playing';
+  },
+  get elapsedMs() { return Math.round(clock()); },
+  get animTime() { return anim.time; },
+  get pulses() { return anim.items.size; },
+  get moves() { return game ? game.state().moves : 0; },
+  get hints() { return game ? game.state().hints : 0; },
+  get cuts() { return game ? game.state().cuts : 0; },
+  get remaining() { return game ? game.state().remaining : 0; },
+  get regions() { return game ? game.state().regions : 0; },
+  get conflicts() { return game ? game.state().conflicts : 0; },
+  get cursor() { return game ? game.cursor : 0; },
+  get rows() { return game ? game.R : 0; },
+  get cols() { return game ? game.C : 0; },
+  // 两个入口，两条都是"把玩家已经走过的门再开一次"，不新建任何一条开局/恢复路径：
+  //  * start = startLevel()：与点档位卡片/按 Enter 落到的 begin() 共用同一份 build() 出题、
+  //    同一个 openPuzzle() 落盘，只差"不给 busy 浮层让帧"。必须是同步这一条——量具在调用返回的
+  //    同一刻读 state，而 begin() 是 async（await 至少欠一个微任务，它不去 flush），
+  //    于是它永远读到一个菜单；busy 浮层本来是给"人眼等得起"那条路用的。
+  //    接一个可选的档位序号或 {tier, seed}，是因为量具按 [] / [0] / [1] / [2] 四种试调形去撞。
+  //  * resume = HUD 暂停键的反向（setPaused(false)）。量具的尾拍会撞 Space，
+  //    而 Space 在这仓里是暂停——没有反向门，一次撞键就把关卡内物理打成静止快照。
+  start(level = null) {
+    if (typeof level === 'number') return startLevel({ tier: (TIERS[level] || TIERS[0]).key });
+    if (level && typeof level === 'object') return startLevel(level);
+    return startLevel({});
+  },
+  resume() { return setPaused(false); },
+  // 探针与任何外部量具读状态只走这一份；window.dc 是给仓内自己的闸用的函数面。
+  get seed() { return game ? game.state().seed : 0; },
+};
+
+// 同一个对象，两个名字：`window.<GameName>` 是给玩家与调试用的正名，而官方量具
+// （cos_frame_probe.js 的 findGame）只认三条通用形——window.game / window.Game / 带 update()
+// 的对象。指过去而不是再造一份：这里没有第二状态源，两个名字读到的就是上面那同一个快照。
+// 注：这条赋值不会改脚本里裸 `game` 的含义——顶层 `let game` 是 global lexical 绑定，
+// 优先级高于全局对象属性，脚本内部的 `game` 一直是那个 Game 实例。
+window.game = window.DoubleChoco;
