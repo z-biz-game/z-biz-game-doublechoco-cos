@@ -41,6 +41,26 @@ jobs:
       - name: UI node smoke (geometry + zero-guess + resume)
         run: node tools/ui-smoke.mjs
 
+      # 行为层的四件事：一次挂起就是真静音（suspend 之后不许再建振荡器节点）、暂停期间仿真
+      # 真的不推进、重开把时钟/缓冲/粒子/光标全部复位、存档两段式解码遇到垃圾只丢那一条。
+      # npm test 早就带着这一份，CI 却没有——按本仓 d82b305 立的规矩，这就是"一条只在作者
+      # 机器上跑过的门"。
+      - name: Behavior gates (mute / pause / restart / store decode)
+        run: node tools/behavior-test.mjs
+
+      # 关卡内三档帧率对拍 + 两条阴性对照。官方 cos_frame_probe.js 对本仓给的是
+      # `⚪ 未覆盖·静止快照 …注入后满时长三档最少推进 2 字段 ⇒ 需写手自建输入驱动 harness 复验`，
+      # 按简报 §3 那一行**不算通过**；这把仓内的尺才是本单的判尺（14 字段、误差比 ≤3.6、
+      # 把 anim.js 仍在吃帧 dt 的那一行改成常量必须变红）。虚拟秒数固定 3，不在 CI 上改考题。
+      - name: Frame-rate compare (30/60/120Hz, in-level)
+        run: node tools/frame-compare.mjs 3
+
+      # 美术资产与页面引用逐条对表：每条同源引用都要①在仓树里存在（PNG 读 magic+IHDR）
+      # ②被 pages.yml 的拷贝腿覆盖。上一版 pages.yml 只拷 index.html+css+js，线上 14 条引用
+      # 全 404 而本地毫无异常——这一条就是为了让那种漂移当场红。
+      - name: Ship list covers every same-origin reference
+        run: node tools/ship-check.mjs
+
       # The ladder is a promise, not a caption: the tier medians printed in the menu are what this
       # step re-measures, and it goes red if a tier stops ordering by deduction rounds.
       - name: Difficulty ladder is still measured
