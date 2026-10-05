@@ -93,6 +93,11 @@ const el = {
 };
 
 const view = new BoardView(el.canvas);
+// 纹理到得比第一帧晚：不补这一画，盘面会停在纯色上，直到下一次状态变化才"突然"带上颗粒。
+view.onTexturesReady = () => {
+  dirty = true;
+  draw();
+};
 let game = null;
 // 一局只有一个时间源：js/session.js。原先这里散着 startedAt / baseElapsed / ticker 三份，
 // "暂停"要同时按住三处才成立，那种代码改一次就漏一处。
@@ -1160,6 +1165,9 @@ window.DoubleChoco = {
   resume() { return setPaused(false); },
   // 探针与任何外部量具读状态只走这一份；window.dc 是给仓内自己的闸用的函数面。
   get seed() { return game ? game.state().seed : 0; },
+  // 底纹到底载没载进来：浏览器那一腿只看像素会分不清"纹理失败退了纯色"与"纹理本来就是这么淡"。
+  // 读数来自 js/render/board.js 的加载结算，不是再建一份状态。
+  get texturesReady() { return boardTexLoaded; },
 };
 
 // 同一个对象，两个名字：`window.<GameName>` 是给玩家与调试用的正名，而官方量具

@@ -390,11 +390,18 @@ button[aria-pressed='true'] { border-color: var(--accent); background: var(--acc
    玩家就得到一个图例与盘面互相矛盾的游戏。 */
 .legend { display: grid; gap: 5px; font-size: 11.5px; color: var(--ink-dim); }
 .legend span { display: flex; align-items: center; gap: 8px; }
-.sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line); display: inline-block; background-size: 14px 14px; }
+.sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line); display: inline-block; }
 /* 图例这两块带的是**画布同源**的颗粒（assets/texture/{choco-grain,paper-fibre}.png，
-   由 gen_art.py 从 Palette.gray / Palette.paper 同一份 token 出）。图例说的是"这种底色长这样"，
-   那就不能是一块纯色塑料。颗粒亮度只在大数的 ±6 内（grain lum 57–88 对 --gray 的 68），
-   所以它不改变图例与盘面之间的任何一条色距——那一条由 ui-smoke 第 6 段钉着。 */
+   由 gen_art.py 从 Palette.gray / Palette.paper 同一份 token 出；js/render/board.js 的
+   BOARD_TEX 在画布上叠的也是这两张，所以"图例说的底色"与"盘上的底色"是同一批像素、
+   同一个频率——这里不写 background-size，256 的图按自然尺寸铺，缩进 14px 见方就成了另一张图）。
+   实测（tools/png.mjs 解 IDAT，按图自身的 alpha 合成，与 CSS/canvas 同一个算式）：
+     choco-grain 未合成亮度 53.5–92.0（大数 --gray 是 68.2），合成后底色落在 56.5–69.2，
+       把灰底最多推开 35（|ΔR|+|ΔG|+|ΔB|）；
+     paper-fibre 未合成 228.6–253.1，合成后 237.0–250.1，最多推开 31。
+   所以它不是"只动 ±6"，而是把底色在一个可量的带里晃。要紧的是它晃不动读数：
+   八种墨各自与纹理的每一个合成像素比一遍取最坏，相对纯色底最多掉 6，而可见门槛是 127——
+   那八条数字由 tools/ui-smoke.mjs 第 7 段在真像素上现算，不写在这句注释里。 */
 .sw-gray { background: url('../assets/texture/choco-grain.png') repeat, var(--gray); border-color: var(--gray-edge); }
 .sw-white { background: url('../assets/texture/paper-fibre.png') repeat, var(--paper); border-color: var(--paper-edge); }
 .sw-dot { background: repeating-linear-gradient(90deg, var(--dot) 0 3px, transparent 3px 6px), var(--surface-lift); }

@@ -16,6 +16,7 @@
 // 为止的十四份，main.js 那一腿留给浏览器与真浏览器闸（它要 DOM 与窗口）。
 import { readFileSync } from 'node:fs';
 import { loadGame, ORDER } from './loader.mjs';
+import { decodePNG } from './png.mjs';
 
 const { OFFICIAL, OFFICIAL_SOLUTION, blocksFromLabel, eqRel, TIERS, tierFor, build, rebuild,
   GEN_BUDGET_MS, Game, puzzleFromParts, BORDER, OPEN, segKey, segmentTable, BoardView, layoutFor,
@@ -332,6 +333,72 @@ ok(`没画的点线在纸格上分得开（dotOnPaper 合成 vs 纸底 ≥ ${vis
 // 沉进纸里（色距低于门槛）——玩家画了、判据认了，屏幕上什么都没有。这一行红就是那种写法回来了。
 const cfBorder = cdist(chan(Palette.border), PAPER), cfDot = cdist(over(Palette.dot, PAPER), PAPER);
 ok(`负样本成立：两半同色会沉底（border 落纸 ${cfBorder} / dot 落纸 ${cfDot}，都 < ${vis}）`, cfBorder < vis && cfDot < vis, JSON.stringify({ cfBorder, cfDot, vis }));
+
+// ---- ⑦ 画布也吃这两张纹理：同源对表 + 真像素上的色距 ----
+head('7. 画布底纹上线之后，八种墨在纹理的每一个合成像素上都还分得开（tools/png.mjs 解 IDAT）');
+// 三件事，都要盘上证据：
+//  a) "画布同源"不是说法：js/render/board.js 的 BOARD_TEX 必须指向 CSS 图例/底纹在用的那几张文件。
+//     图例带颗粒而画布不带，玩家看到的是"图例说这种底色长这样，盘上是另一块塑料"。
+//  b) 叠了底纹不能把任何一种墨吃掉：把纹理按它自己的 alpha 合成到纯色底上，得到这块底色可能取到
+//     的每一个 RGB，八种墨各与它们比一遍取**最坏**，门槛沿用第 6 段那把尺（题面色差的 25%）。
+//  c) 阴性对照：颗粒强度乘 6 ⇒ 必须有墨掉到门槛之下。不掉 ⇒ 这把尺对底纹空跑，(b) 的绿没有意义。
+const readRepo = (p) => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
+const boardSrc = readRepo('js/render/board.js');
+const cssSrc = readRepo('css/game.css');
+const texOfBoard = [...new Set([...boardSrc.matchAll(/['"]((?:assets|icons)\/[^'"]+\.png)['"]/g)].map((m) => m[1]))];
+const texOfCss = [...new Set([...cssSrc.matchAll(/url\(['"]?\.\.\/((?:assets|icons)\/[^'"]+\.png)['"]?\)/g)].map((m) => m[1]))];
+ok(`画布与图例吃的是同一批纹理（board ${texOfBoard.length} 张 ⊆ css ${texOfCss.length} 张）`,
+  texOfBoard.length > 0 && texOfBoard.every((p) => texOfCss.includes(p)), JSON.stringify({ texOfBoard, texOfCss }));
+
+// 一张纹理合成到纯色底之后，那块底色可能取到的 RGB 集合（去重）；gain 是颗粒强度倍数。
+const grainSet = (file, base, gain = 1) => {
+  const im = decodePNG(new URL('../' + file, import.meta.url));
+  const set = new Map();
+  for (let i = 0; i < im.w * im.h; i++) {
+    const o = i * im.bpp;
+    const al = Math.min(1, (im.data[o + 3] / 255) * gain);
+    const c = [0, 1, 2].map((k) => Math.round(al * im.data[o + k] + (1 - al) * base[k]));
+    set.set(c.join(','), c);
+  }
+  return { size: set.size, colors: [...set.values()], wh: `${im.w}x${im.h}` };
+};
+const grainGray = grainSet('assets/texture/choco-grain.png', GRAY);
+const grainPaper = grainSet('assets/texture/paper-fibre.png', PAPER);
+console.log(`      \x1b[2mchoco-grain ${grainGray.wh} ⇒ 灰底合成后取 ${grainGray.size} 个不同 RGB；paper-fibre ${grainPaper.wh} ⇒ 纸底 ${grainPaper.size} 个\x1b[0m`);
+ok('两张纹理都是解得开的 256×256 位图（不是 SVG 冒充，也不是 0 字节）',
+  grainGray.wh === '256x256' && grainPaper.wh === '256x256', `${grainGray.wh}/${grainPaper.wh}`);
+
+// 第 6 段的 over() 只认 rgba token（c[3] 就是 alpha）；这八条里 border/ink/accent/error 是
+// #RRGGBB，chan() 只回三个分量 ⇒ c[3] undefined ⇒ 色距算成 NaN、八条一起假绿。
+// 所以这一段自带一个"不透明就当 alpha=1"的版本，六段的地板不动。
+const chanA = (s) => { const c = chan(s); return c.length > 3 ? c : [...c, 1]; };
+const overA = (fg, bg) => { const c = chanA(fg); return [0, 1, 2].map((k) => Math.round(c[3] * c[k] + (1 - c[3]) * bg[k])); };
+const worstOver = (ink, grain) => Math.min(...grain.colors.map((bg) => cdist(overA(ink, bg), bg)));
+const INKS = [
+  ['border 实线落灰', Palette.border, GRAY, grainGray],
+  ['borderOnPaper 实线落纸', Palette.borderOnPaper, PAPER, grainPaper],
+  ['dot 点线落灰', Palette.dot, GRAY, grainGray],
+  ['dotOnPaper 点线落纸', Palette.dotOnPaper, PAPER, grainPaper],
+  ['ink 数字落灰', Palette.ink, GRAY, grainGray],
+  ['inkOnPaper 数字落纸', Palette.inkOnPaper, PAPER, grainPaper],
+  ['accent 光标/把手落灰', Palette.accent, GRAY, grainGray],
+  ['error 违反罩落灰', Palette.error, GRAY, grainGray],
+];
+for (const [name, ink, base, grain] of INKS) {
+  const flat = cdist(overA(ink, base), base);
+  const wf = worstOver(ink, grain);
+  ok(`${name}（纯色底 ${flat} → 纹理最坏 ${wf} ≥ 门槛 ${vis}）`, wf >= vis, `掉 ${flat - wf}`);
+}
+console.log(`      \x1b[2m八条各被底纹吃掉多少色距：${INKS.map(([n, ink, base, grain]) => `${n.split(' ')[0]} ${cdist(overA(ink, base), base) - worstOver(ink, grain)}`).join(' / ')}\x1b[0m`);
+// 第 6 段管"墨离门槛够不够远"，这一段只管**底纹吃掉了多少**：半透明的点线本来就只有一百七十多
+// （dotOnPaper 落纸 183），那是墨自己的余量，不该算在底纹头上。底纹的承诺是"只晃底色、
+// 不吃色距"——八条里被吃得最狠的那一条也不许超过 12（实测最大 6，落在 borderOnPaper）。
+const drops = INKS.map(([, ink, base, grain]) => cdist(overA(ink, base), base) - worstOver(ink, grain));
+ok(`底纹最多只吃掉 ${Math.max(...drops)} 点色距（上限 12）`, Math.max(...drops) <= 12, JSON.stringify(drops));
+const strongColors = grainSet('assets/texture/choco-grain.png', GRAY, 6).colors.concat(grainSet('assets/texture/paper-fibre.png', PAPER, 6).colors);
+const sinkCt = INKS.filter(([, ink]) => Math.min(...strongColors.map((bg) => cdist(overA(ink, bg), bg))) < vis).length;
+console.log(`      \x1b[2m颗粒 ×6 之后沉到门槛下的墨：${sinkCt}/${INKS.length} 条\x1b[0m`);
+ok('阴性对照成立：颗粒再强 6 倍必须有墨沉底（否则这把尺对底纹是空跑的）', sinkCt >= 1, JSON.stringify({ sinkCt, vis }));
 
 console.log(`\n${fail ? '\x1b[31m' : '\x1b[32m'}ui-smoke ${pass}/${pass + fail} 绿\x1b[0m`);
 process.exit(fail ? 1 : 0);

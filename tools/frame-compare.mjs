@@ -31,11 +31,12 @@ const RATIO_RED = 3.6;
 // 换成常量必须变红。§6 的更正口径：改成累加器之后还去改"每步 dt 恒定"的位移行，
 // 结构上就红不了，那种"改不动"不算通过。
 const CONTROL = { file: 'js/anim.js', from: 'this.time += dt;', to: 'this.time += 1 / 60;' };
-const KEYS = ['state', 'elapsedMs', 'animTime', 'pulses', 'moves', 'cuts', 'remaining', 'regions', 'conflicts', 'cursor', 'seed', 'rows', 'cols'];
+const KEYS = ['state', 'elapsedMs', 'animTime', 'texturesReady', 'pulses', 'moves', 'cuts', 'remaining', 'regions', 'conflicts', 'cursor', 'seed', 'rows', 'cols'];
 
 const noop = () => {};
 function mkCtx(canvas) {
-  const grad = { addColorStop: noop };
+  // pattern 对象要接得住 setTransform(dpr 校准那一步)，否则画布的纹理分支在沙箱里根本走不到。
+  const grad = { addColorStop: noop, setTransform: noop };
   return new Proxy({}, {
     get: (o, k) => {
       if (k === 'canvas') return canvas;
@@ -148,7 +149,19 @@ function boot(seed, patch) {
     localStorage: { _s: new Map(), getItem(k) { return this._s.has(k) ? this._s.get(k) : null; }, setItem(k, v) { this._s.set(k, String(v)); }, removeItem(k) { this._s.delete(k); } },
     CustomEvent: function (t, o) { Object.assign(this, o || {}, { type: t }); },
     Event: function (t) { this.type = t; },
-    Image: function () { return { addEventListener: noop }; },
+    // 图在下一拍就绪（两张纹理各 256×256）：画布的 pattern 分支必须真的在 30/60/120Hz
+    // 对跑里被执行过，否则量的是"没有底纹"的那条路径，纹理改了物理也看不见。
+    Image: function () {
+      const im = { width: 256, height: 256, _h: {}, onload: null, onerror: null,
+        addEventListener(t, cb) { (im._h[t] = im._h[t] || []).push(cb); } };
+      env.setTimeout(() => {
+        for (const cb of (im._h.load || [])) cb();
+        if (im.onload) im.onload();
+      }, 0);
+      return im;
+    },
+    DOMMatrix: function () { this.scale = () => this; },
+    URL: globalThis.URL,
     fetch: () => Promise.resolve({ json: () => Promise.resolve({}) }),
     alert: noop, confirm: () => false,
     OffscreenCanvas: function () { return { getContext: () => mkCtx(null) }; },

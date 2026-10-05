@@ -20,11 +20,76 @@ function layoutFor(R, C, availW, availH) {
   return { cell, boardW: cell * C, boardH: cell * R, pad };
 }
 
+// ---- 画布底纹：与 css/game.css 的图例吃同一张盘上文件 ----
+// 灰格是巧克力、白格是白纸，这不是修辞：js/theme.js 的 Palette.gray/paper 是这两种底色的
+// **大数**，而颗粒是围绕它的分布（assets/gen/gen_art.py 从同一批 token 出图）。
+// 只有画布也叠上同一张图，"图例说的底色"与"盘上的底色"才是同一件事；否则 css 注释里那句
+// "画布同源"就是一句假的。强度不另调：叠法与 CSS 的 `background: url() repeat, var(--x)`
+// 逐像素同式，最坏情况由 tools/ui-smoke.mjs 第 7 段在真像素上判（八种墨一条都不掉门槛）。
+const BOARD_TEX = {
+  gray: 'assets/texture/choco-grain.png',
+  paper: 'assets/texture/paper-fibre.png',
+};
+
+// 只载一次：两张图是静态资产，每一局重新 fetch 会让"重开"多两次网络往返，
+// 而 browser 的 cache 让第二次的代价本就不该由这个模块来付。
+const boardTexImages = {};
+let boardTexLoaded = false;
+function loadBoardTextures(onReady) {
+  const keys = Object.keys(BOARD_TEX);
+  let alive = keys.length;
+  for (const k of keys) {
+    if (boardTexImages[k]) { if (--alive === 0) onReady(); continue; }
+    const img = new Image();
+    // addEventListener 与 onload 两条都挂：这一层不能因为某个内核只认其中一条就永远等不到图。
+    // 但两条都认的内核会回调两次，所以每一张只许结算一次（否则 alive 扣成负数、onReady 多叫）。
+    let settled = false;
+    const settle = (ok) => {
+      if (settled) return;
+      settled = true;
+      if (ok) boardTexImages[k] = img;
+      else delete boardTexImages[k];
+      if (boardTexImages.gray && boardTexImages.paper) boardTexLoaded = true;
+      alive -= 1;
+      if (alive === 0) onReady();
+    };
+    img.addEventListener('load', () => settle(true));
+    img.addEventListener('error', () => settle(false));
+    img.onload = () => settle(true);
+    img.onerror = () => settle(false);
+    img.src = BOARD_TEX[k];
+  }
+}
+
 class BoardView {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.geo = { cell: 0, x: 0, y: 0, w: 0, h: 0, dpr: 1 };
+    // pattern 与 dpr 绑定（下面 setTransform 那一层），所以缓存的键是 dpr 而不是图。
+    this.patterns = new Map();
+    this.onTexturesReady = null;
+    loadBoardTextures(() => { if (this.onTexturesReady) this.onTexturesReady(); });
+  }
+
+  // 取（并按 dpr 校准）一张纹理的 pattern。取不到就返回 null，调用方退回纯色——
+  // 底纹是一层像素，不是一个判据：file:// 下被安全策略拦掉、或离线壳没带图的时候，
+  // 盘面必须照常可读。
+  pattern(kind) {
+    const img = boardTexImages[kind];
+    if (!img || !img.width) return null;
+    const key = kind + '@' + this.geo.dpr;
+    if (this.patterns.has(key)) return this.patterns.get(key);
+    let pat = null;
+    try {
+      pat = this.ctx.createPattern(img, 'repeat');
+      // CSS 的 background-image 按设备像素铺；这边的画布整体被 setTransform(dpr) 放大过，
+      // 所以 pattern 要缩回 1/dpr，否则 Retina 上颗粒比图例粗一倍，"同源"只剩一半。
+      const M = typeof DOMMatrix === 'function' ? DOMMatrix : (typeof window !== 'undefined' ? window.DOMMatrix : null);
+      if (pat && pat.setTransform && M) pat.setTransform(new M().scale(1 / Math.max(1, this.geo.dpr)));
+    } catch { pat = null; }
+    this.patterns.set(key, pat);
+    return pat;
   }
 
   // 后备缓冲按设备像素定尺寸，所有绘制调用留在 CSS 像素：开头一次 setTransform，
@@ -116,10 +181,20 @@ class BoardView {
     ctx.fill();
 
     // 底层：题面给的灰格与白格。"数字数的是哪一半"全靠这一层，所以不用 alpha 蒙出来。
+    // 纯色是大数，颗粒是围绕它的分布：同一张盘上文件也被 CSS 的图例用着（BOARD_TEX 那两行）。
+    // 纹理只到这一层为止——区域回显、违反红罩、三种墨、数字全在它之上，所以它盖不住任何读数。
+    const patGray = this.pattern('gray');
+    const patPaper = this.pattern('paper');
     for (const i of B.cells) {
       const r = this.cellRect(i);
-      ctx.fillStyle = B.isGray(i) ? Palette.gray : Palette.paper;
+      const gray = B.isGray(i);
+      ctx.fillStyle = gray ? Palette.gray : Palette.paper;
       ctx.fillRect(r.x, r.y, cell, cell);
+      const pat = gray ? patGray : patPaper;
+      if (pat) {
+        ctx.fillStyle = pat;
+        ctx.fillRect(r.x, r.y, cell, cell);
+      }
     }
 
     // 玩家当前分块的回显：整块同色。画错时也照样回显——它是读数，不是判词。
