@@ -168,3 +168,6 @@ X13 内联位图谎报尺寸——只在有靶子时下：X11/X12 要页面上�
 把 ci.yml 里那行 `run: node tools/deploy-set.mjs` 砍掉，本仓整闸必须点名红且退出码非 0。
 所以「本地全绿、线上 404 自己的 manifest / sw.js / 图标」这一类坏法在本地就会红。
 
+## 在线试玩
+
+<https://z-biz-game.github.io/z-biz-game-doublechoco-cos/>（`main` 分支推送即自动部署）
