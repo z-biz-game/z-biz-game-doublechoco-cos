@@ -22,10 +22,7 @@ jobs:
       # No npm install: the game has zero runtime dependencies, and pulling a browser or a
       # bundler into CI to prove nothing is how a repo starts failing on a network flake.
       - name: Syntax check every source
-        run: |
-          for f in $(git ls-files 'js/*.js' 'js/*/*.js'); do node --check "$f" || exit 1; done
-          node --check server.cjs
-          for f in $(git ls-files 'tools/*.mjs' tools/scenarios.js tools/playtest.cjs); do node --check "$f" || exit 1; done
+        run: npm run check
 
       # The real promise: every generated board has one solution and is reachable by the named
       # pencil rules. Plain Node, so it guards merges without a browser.
