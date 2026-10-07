@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.cjs",
     "dev": "node server.cjs 5263",
-    "test": "node tools/engine-test.mjs && node tools/ui-smoke.mjs",
+    "test": "node tools/engine-test.mjs && node tools/ui-smoke.mjs && node tools/docs-test.mjs",
     "balance": "node tools/balance.mjs",
     "check": "for f in $(find js tools server.cjs -type f \\( -name \"*.js\" -o -name \"*.mjs\" -o -name \"*.cjs\" \\) | sort); do node --check \"$f\" || exit 1; done && echo OK",
     "smoke": "node tools/ui-smoke.mjs",

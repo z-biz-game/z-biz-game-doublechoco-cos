@@ -43,6 +43,12 @@ jobs:
       - name: Difficulty ladder is still measured
         run: node tools/balance.mjs
 
+      # 文档行号对账：README/DESIGN 里每一条 `文件:行号` 必须在盘上、在界内，且贴着引用写的那个名字
+      # 真的出现在被指的那几行里。这份必须和 npm test 里那条同一条——文档里的坐标是给人核对用的，
+      # 只在作者机器上对过一遍等于没有对过。
+      - name: Docs line citations point at real code
+        run: node tools/docs-test.mjs
+
       - name: Entry files exist
         run: test -f index.html && grep -q '<canvas' index.html && grep -q 'js/main.js' index.html && grep -q 'doublechoco' index.html
       # 部署集闸：按 tools/assemble-site.sh 那份清单真拷一遍产物，要求页面会去要的东西

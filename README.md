@@ -86,11 +86,16 @@ npm run dev            # node server.cjs 5263
 ## 验证：四条命令，以及它们各自说什么
 
 ```bash
-npm test                      # engine-test + ui-smoke 两条链，纯 node，无浏览器；条数由命令自己打印
+npm test                      # engine-test + ui-smoke + docs-test 三条链，纯 node，无浏览器；条数由命令自己打印
 node tools/balance.mjs        # B1–B6 的红线：出货、阶梯方向、golden 逐值、完整池、成本上限、预算复跑
 bash tools/verify.sh          # 真浏览器闸：headless Chrome + CDP，两种 URL 形态各跑一遍全部腿
 GATE_SELFTEST=1 bash tools/verify.sh   # 阴性自证：种一条注定错的期望，必须红并且 rc≠0
 ```
+
+`node tools/docs-test.mjs` 对的是这两份文档自己：每一条 `文件:行号` 指回的必须在盘上、在界内，
+而且贴着引用写的那个名字必须真的出现在被指的那几行里。本轮读数（由这条腿自己打印，不手数）：
+解析 134 条、续引 5 条、无法定址 0 处、14 条贴着引用写了指认、跨仓引用 0 处。
+它第一次跑就点名了一条真漂：`Store.clearResume()` 在 `js/main.js:424`，而这句话原先挂在 `:423`。
 
 前三条命令的绿都在 CI 里（`.github/workflows/ci.yml`）。第四条不在 CI 的主路径上，
 但它回答的是"这条闸能不能红"——CI 里紧跟着一步 `Gate proves it can fail` 就是它。
@@ -115,6 +120,10 @@ GATE_SELFTEST=1 bash tools/verify.sh   # 阴性自证：种一条注定错的期
   规则名与它点名的段一起印在屏幕上（`js/ui/game.js:258-266`）。
 - **不裁决**出版方没有裁决的事。V7 的连通读法是我们写的裁定，宽松读法在官方 4×4 例题上给出同一唯一解——
   这一句是断言不是忏悔：`tools/engine-test.mjs:139` 第 3 段要求存在"只违反 V7"的见证盘。
+- **不承诺文档全量对账**。文档行号那条腿只读**写在反引号里**的 `文件:行号`：树形清单里那句"裁定记录在文件头
+  1-22 行"、或者不带坐标的散文描述，它一条也看不见。续引（只写 `:NN`）向同一句里最近那条完整引用借路径，
+  借不到的计入「无法定址」而不是被跳过；跨仓引用（`../别的仓/…`）按形状分出去、只数不验。
+  被这条腿判绿的引用，不等于它的邻居也被判过。
 
 ## 来源
 
