@@ -13,6 +13,7 @@
 //   · 带 `<占位>` 的模板 body 取字面量前缀（只有真写了占位符才这么拆，否则 `test:syntax` 会拆成 `test`）；
 //   · 带空格的 body 是命令行（`npm test`），按首词钉就是一次假红；
 //   · 纯标点间隔（`，`、`、`）不构成指认——前面那个名字只是列表的上一项；
+//   · 锚点认**整词**不认子串：一个短名字坐在声明长标识符的那一行上也会"出现"，子串口径把一次真的漂读成绿；
 //   · 续引（完整引用后面只写 `:NN`）向**同一句里最近的那条完整引用**借路径，句号、分号、空行、
 //     新标题都截断这次借；借不到的计入「无法定址」，由等值闸逐处钉住，不静默跳过；
 //   · 跨仓引用（`../别的仓/…:NN`）按形状分出去：单仓 checkout 里读不到它，按"文件在不在"决定红不红
@@ -111,6 +112,17 @@ function parseRefs(text, orphans = null) {
   return out;
 }
 
+// 整词而不是子串：子串口径比它替掉的手写锚点表**更弱**——`node` 坐在 `let nodes = 0;` 那一行上也算"出现"，
+// 一个短名字会碰巧落在任何含它的标识符里，于是把一次真的漂读成绿。名字两侧不得再是标识符字符。
+// 带缓存是因为一条腿要核上百次同一个名字。
+const wordCache = new Map();
+const hasWord = (text, name) => {
+  if (!wordCache.has(name)) {
+    wordCache.set(name, new RegExp('(^|[^A-Za-z0-9_$])' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^A-Za-z0-9_$])'));
+  }
+  return wordCache.get(name).test(text);
+};
+
 function audit(text) {
   const orphans = [];
   const refs = parseRefs(text, orphans);
@@ -130,12 +142,12 @@ function audit(text) {
       continue;
     }
     // 行号在界内不等于指到了实处：整段落在空行上时，读者顺着引用走过去什么也找不到。
-    // 后面那条 `continue` 让一把只交一行红，八把的计数才有意义。
+    // 后面那条 `continue` 让一把只交一行红，九把的计数才有意义。
     if (lines.slice(r.from - 1, r.to).join('').trim() === '') {
       outOfRange.push(`${label} 那几行整段是空行`);
       continue;
     }
-    if (r.anchor && !lines.slice(r.from - 1, r.to).join('\n').includes(r.anchor)) {
+    if (r.anchor && !hasWord(lines.slice(r.from - 1, r.to).join('\n'), r.anchor)) {
       anchorBad.push(`${label} 那几行里没有 ${r.anchor}`);
     }
   }
@@ -248,18 +260,22 @@ export function run(ok) {
     cC.refs.length === 1 && cC.unaddressed === 0 && cC.outOfRange.length + cC.anchorBad.length === 0,
     [...cC.outOfRange, ...cC.anchorBad].join(' | ') + `（refs=${cC.refs.length} 借不到=${cC.unaddressed}）`);
 
-  head('5. 反空转：八把假引用必须一把不落');
+  head('5. 反空转：九把假引用必须一把不落');
   // 空行靶子的行号当场从 js/engine/generate.js 数出来，不抄常量：写死一个数字，那位子哪天被填上
   // 内容，这一把就悄悄不测了——所以 blankAt > 0 与计数一起判。
+  // 第九把是**截前缀**：generate.js 第 34 行声明的是 `nodes`，把锚点写成 `node` 时子串口径算命中
+  // （那行里除了 `nodes` 没有别的 `node`），整词口径判它红。这条腿哪天退回 `.includes`，
+  // 少的就是这一把——它是整词那道口径的哨，红行当场点名。
   const blankLines = linesOf('js/engine/generate.js') || [];
   let blankAt = 0;
   for (let i = 1; i < blankLines.length; i++) if (String(blankLines[i]).trim() === '') { blankAt = i + 1; break; }
   const F = audit('出处 `js/engine/nope.js:1`、`js/engine/generate.js:99999`、`NO_SUCH_NAME` 在 `js/engine/generate.js:1`、' +
     '`package.json`（999 行）、`js/engine/generate.js:1`（`makePuzzle`）、`js/engine/generate.js:1` 的 `makePuzzle`、' +
     '`js/engine/generate.js:1`（`Math.max(3, 4)`）' +
-    (blankAt ? '、`js/engine/generate.js:' + blankAt + '`' : ''));
-  ok('D 假引用八把全被抓到（不存在 / 越界 / 行数错 / 后向锚点漂 / 前向括号锚点漂 / 「的」锚点漂 / 函数调用形式锚点漂 / 无锚点落在空行第 ' + blankAt + ' 行）',
-    blankAt > 0 && F.outOfRange.length + F.anchorBad.length === 8, [...F.outOfRange, ...F.anchorBad].join(' | '));
+    (blankAt ? '、`js/engine/generate.js:' + blankAt + '`' : '') +
+    '、`js/engine/generate.js:34`（`node`）');
+  ok('D 假引用九把全被抓到（不存在 / 越界 / 行数错 / 后向锚点漂 / 前向括号锚点漂 / 「的」锚点漂 / 函数调用形式锚点漂 / 无锚点落在空行第 ' + blankAt + ' 行 / 前缀不算整词）',
+    blankAt > 0 && F.outOfRange.length + F.anchorBad.length === 9, [...F.outOfRange, ...F.anchorBad].join(' | '));
 
   head('6. 阳性对照：六种真注解写法 + 真行数必须判绿');
   // 上一条的"红"可能只是解析器自己坏了——这一把用本仓真的行与真的名字，走同一个 audit。
@@ -273,7 +289,7 @@ export function run(ok) {
     [...fwd.outOfRange, ...fwd.anchorBad].join(' | ') + `（refs=${fwd.refs.length}）`);
 
   // 模板前缀：`name:<占位>` 指的是那串字面量前缀。本仓文档没这么写过，所以这一把只由台架证明——
-  // 规则一丢，`NOPE:<占位>` 那种假引用连锚点都不会生成，八把里就少一把。
+  // 规则一丢，`NOPE:<占位>` 那种假引用连锚点都不会生成，九把里就少一把。
   const tplGreen = audit('`js/engine/generate.js:67`（`makePuzzle:<占位>`）');
   const tplRed = audit('`js/engine/generate.js:67`（`NOPE:<占位>`）').anchorBad;
   ok('D 模板 body 取字面量前缀（前缀对得上判绿、对不上必须红）',
