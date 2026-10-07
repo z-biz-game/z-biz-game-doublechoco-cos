@@ -129,6 +129,12 @@ function audit(text) {
       outOfRange.push(`${label} 越界（该文件共 ${lines.length} 行）`);
       continue;
     }
+    // 行号在界内不等于指到了实处：整段落在空行上时，读者顺着引用走过去什么也找不到。
+    // 后面那条 `continue` 让一把只交一行红，八把的计数才有意义。
+    if (lines.slice(r.from - 1, r.to).join('').trim() === '') {
+      outOfRange.push(`${label} 那几行整段是空行`);
+      continue;
+    }
     if (r.anchor && !lines.slice(r.from - 1, r.to).join('\n').includes(r.anchor)) {
       anchorBad.push(`${label} 那几行里没有 ${r.anchor}`);
     }
@@ -242,12 +248,18 @@ export function run(ok) {
     cC.refs.length === 1 && cC.unaddressed === 0 && cC.outOfRange.length + cC.anchorBad.length === 0,
     [...cC.outOfRange, ...cC.anchorBad].join(' | ') + `（refs=${cC.refs.length} 借不到=${cC.unaddressed}）`);
 
-  head('5. 反空转：七把假引用必须一把不落');
+  head('5. 反空转：八把假引用必须一把不落');
+  // 空行靶子的行号当场从 js/engine/generate.js 数出来，不抄常量：写死一个数字，那位子哪天被填上
+  // 内容，这一把就悄悄不测了——所以 blankAt > 0 与计数一起判。
+  const blankLines = linesOf('js/engine/generate.js') || [];
+  let blankAt = 0;
+  for (let i = 1; i < blankLines.length; i++) if (String(blankLines[i]).trim() === '') { blankAt = i + 1; break; }
   const F = audit('出处 `js/engine/nope.js:1`、`js/engine/generate.js:99999`、`NO_SUCH_NAME` 在 `js/engine/generate.js:1`、' +
     '`package.json`（999 行）、`js/engine/generate.js:1`（`makePuzzle`）、`js/engine/generate.js:1` 的 `makePuzzle`、' +
-    '`js/engine/generate.js:1`（`Math.max(3, 4)`）');
-  ok('D 假引用七把全被抓到（不存在 / 越界 / 行数错 / 后向锚点漂 / 前向括号锚点漂 / 「的」锚点漂 / 函数调用形式锚点漂）',
-    F.outOfRange.length + F.anchorBad.length === 7, [...F.outOfRange, ...F.anchorBad].join(' | '));
+    '`js/engine/generate.js:1`（`Math.max(3, 4)`）' +
+    (blankAt ? '、`js/engine/generate.js:' + blankAt + '`' : ''));
+  ok('D 假引用八把全被抓到（不存在 / 越界 / 行数错 / 后向锚点漂 / 前向括号锚点漂 / 「的」锚点漂 / 函数调用形式锚点漂 / 无锚点落在空行第 ' + blankAt + ' 行）',
+    blankAt > 0 && F.outOfRange.length + F.anchorBad.length === 8, [...F.outOfRange, ...F.anchorBad].join(' | '));
 
   head('6. 阳性对照：六种真注解写法 + 真行数必须判绿');
   // 上一条的"红"可能只是解析器自己坏了——这一把用本仓真的行与真的名字，走同一个 audit。
@@ -261,7 +273,7 @@ export function run(ok) {
     [...fwd.outOfRange, ...fwd.anchorBad].join(' | ') + `（refs=${fwd.refs.length}）`);
 
   // 模板前缀：`name:<占位>` 指的是那串字面量前缀。本仓文档没这么写过，所以这一把只由台架证明——
-  // 规则一丢，`NOPE:<占位>` 那种假引用连锚点都不会生成，七把里就少一把。
+  // 规则一丢，`NOPE:<占位>` 那种假引用连锚点都不会生成，八把里就少一把。
   const tplGreen = audit('`js/engine/generate.js:67`（`makePuzzle:<占位>`）');
   const tplRed = audit('`js/engine/generate.js:67`（`NOPE:<占位>`）').anchorBad;
   ok('D 模板 body 取字面量前缀（前缀对得上判绿、对不上必须红）',

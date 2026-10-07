@@ -92,7 +92,7 @@ bash tools/verify.sh          # 真浏览器闸：headless Chrome + CDP，两种
 GATE_SELFTEST=1 bash tools/verify.sh   # 阴性自证：种一条注定错的期望，必须红并且 rc≠0
 ```
 
-`node tools/docs-test.mjs` 对的是这两份文档自己：每一条 `文件:行号` 指回的必须在盘上、在界内，
+`node tools/docs-test.mjs` 对的是这两份文档自己：每一条 `文件:行号` 指回的必须在盘上、在界内、不得整段落在空行上，
 而且贴着引用写的那个名字必须真的出现在被指的那几行里。本轮读数（由这条腿自己打印，不手数）：
 解析 134 条、续引 5 条、无法定址 0 处、14 条贴着引用写了指认、跨仓引用 0 处。
 它第一次跑就点名了一条真漂：`Store.clearResume()` 在 `js/main.js:424`，而这句话原先挂在 `:423`。

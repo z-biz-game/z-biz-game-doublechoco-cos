@@ -215,7 +215,7 @@ seed 游标 `peekSeed`（`js/store.js:158`）是自增小整数，**默认种子
   两半的墨分得开（`tools/ui-smoke.mjs:111-331`）。
 - `node tools/balance.mjs` —— B1–B6（`tools/balance.mjs:54-177`）。
 - `node tools/docs-test.mjs` —— 文档行号对账：这两份文档里每一条 `文件:行号` 指回的是不是真代码
-  （`tools/docs-test.mjs:114-145` 的 `audit`）。
+  （`tools/docs-test.mjs:114-151` 的 `audit`）。
 - `bash tools/verify.sh` —— 真浏览器：core play win mouse touch keys save（`tools/verify.sh:78`）× 两种 URL 形态。
 - `GATE_SELFTEST=1 bash tools/verify.sh` —— 阴性自证：每份报告必须点名吃下种下的错（`tools/verify.sh:231-256`）。
 
@@ -238,9 +238,15 @@ README / DESIGN 里每个数字后面都挂着 `文件:行号`。这句"行号�
   哪天有人补一条跨仓引用而忘了改文档，红的是这条腿。
 - **等式闸**：文档转写的实测数（下面那五个）必须逐个等于这条腿自己数到的，**删掉数字同样算红**；
   输入集从目录里现数（`docFiles`），不手抄名单。
-- 七把假引用（不存在 / 越界 / 行数写错 / 四种写法各自的锚点漂）必须一把不落，六种真贴法必须判绿，
+- 八把假引用（不存在 / 越界 / 行数写错 / 四种写法各自的锚点漂 / 无锚点那条整段落在空行上——空行靶子的
+  行号当场从 `js/engine/generate.js` 数出来、不写死常量，那位子哪天被填上内容这一把会连着 `blankAt > 0`
+  一起失效并被抓住）必须一把不落，六种真贴法必须判绿，
   外加一把"把本仓一条界内的真引用挪歪一格"的阳性刀——这一把红的是 `js/engine/generate.js:68`
   那几行里没有 `makePuzzle`，也就是锚点腿真有牙齿。
+- 空行那一把另有一次性的牙齿证明（日志 `_tmp-doublechoco-blank-teeth.log`，判词 `TEETH_OK`）：在 `_scratch/`
+  下的**副本**里把 DESIGN 中一条界内、当前不落在空行的真引用改指到 `js/engine/generate.js` 的第 17 行——
+  副本动刀之前自己就是绿的，动刀后 rc 1、只交出 1 行红、红行点名「整段是空行」并把「解析 134 条」原样印在
+  那一行里（所以那条红不来自计数对账）；改回去 rc 回 0。盘上的仓一个字没改，副本跑完即删。
 
 本轮读数（由 `node tools/docs-test.mjs` 自己打印）：解析 134 条、续引 5 条、无法定址 0 处、
 14 条贴着引用写了指认、跨仓引用 0 处。
