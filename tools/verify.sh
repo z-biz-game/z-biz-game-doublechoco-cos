@@ -20,7 +20,7 @@ set -u
 HERE=$(cd "$(dirname "$0")/.." && pwd)
 # 9363 而不是 9362：9362 是本农场里 z-biz-game-hebi-cos 那条闸的 devtools 端口，
 # 两个仓同时在跑时 attach 到别人的 Chrome 上，读到的是别人的盘。
-PORT=${CDP_PORT:-9363}
+PORT=${CDP_PORT:-9363}; if command -v lsof >/dev/null 2>&1 && lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then echo ":$PORT is already LISTENING — a sibling gate or an orphan Chrome holds it; attaching there reads someone else's browser. Wait for it to finish, or rerun with CDP_PORT=<a free port>." >&2; lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >&2 || true; exit 6; fi  # 一机一台：撞在同一个默认口上时不报错的是 Chrome，报错的是绿——先让路再开闸
 # 5263 是本仓自己的端口；别的 agent 同时在跑各自仓的 verify.sh，端口撞了就会拿到"另一个仓"的
 # index.html，那种绿比红更糟。
 HTTP=${HTTP_PORT:-5263}
@@ -234,7 +234,7 @@ if [ "$SELF" = 1 ]; then
       core|play|win) EXPECTED=$((EXPECTED + 2)) ;;
       mouse|touch|keys) EXPECTED=$((EXPECTED + 1)) ;;
       save) EXPECTED=$((EXPECTED + 5)) ;;
-      *) echo "  RED 未知的腿：$leg（对数表里没有它）" >&2; FAILED=1 ;;
+      *) echo "  RED 未知的腿：${leg}（对数表里没有它）" >&2; FAILED=1 ;;
     esac
   done
   EXPECTED=$((EXPECTED * ${#SHAPES[@]}))
@@ -242,7 +242,7 @@ if [ "$SELF" = 1 ]; then
   HIT=$(awk '$2 > 0' "$REPORTS" | wc -l | tr -d ' ')
   echo "  应有 $EXPECTED 份报告，实到 $GOT 份，其中 $HIT 份点名吃下了种下的错"
   if [ "$GOT" != "$EXPECTED" ]; then
-    echo "  RED 阴性自证的报告数对不上：$GOT ≠ $EXPECTED（有腿没跑，或对数表漂了）" >&2
+    echo "  RED 阴性自证的报告数对不上：$GOT ≠ ${EXPECTED}（有腿没跑，或对数表漂了）" >&2
     FAILED=1
   fi
   if [ "$FAILED" = 0 ]; then
@@ -257,5 +257,10 @@ if [ "$SELF" = 1 ]; then
 fi
 
 kill $WD 2>/dev/null
+# 部署集闸：ci.yml 跑这两步、本地整闸以前一次都不跑。缺这一步就是「本地全绿、线上 404 自己的
+# manifest / sw.js / 图标」这一整类坏法。它不碰 Chrome，也不读页面，纯查产物。
+echo "=== deploy-set ==="
+node tools/deploy-set.mjs || FAILED=1
+node tools/deploy-set-selftest.mjs || FAILED=1
 [ $FAILED -eq 0 ] && echo "=== ALL GREEN ===" || echo "=== FAILURES ABOVE (rc=$FAILED) ==="
 exit $FAILED

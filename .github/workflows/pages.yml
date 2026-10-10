@@ -39,8 +39,6 @@ jobs:
       - name: Ship list covers every same-origin reference
         run: node tools/ship-check.mjs
       - uses: actions/configure-pages@v5
-        with:
-          use-actions-v4-deploy-action: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

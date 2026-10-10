@@ -6,8 +6,8 @@
 ## 形状
 
 ```
-index.html            一个文档两种视图（菜单 / 对局）；规则表由引擎提供，不在 HTML 里手抄（index.html:69-72）
-css/game.css          版式与 token；#board 的 touch-action 有它自己的理由（css/game.css:189-193）
+index.html            一个文档两种视图（菜单 / 对局）；规则表由引擎提供，不在 HTML 里手抄
+css/game.css          版式与 token；#board 的 touch-action 有它自己的理由
 js/engine/rules.js    条款：V1a…V7 的原句与 clauses()（承重条款 V7 的裁定记录在文件头 1-22 行）
 js/engine/blocks.js   候选池：exactBlocks 在这块底纹上**能**有哪些块（完整枚举，预算只放弃不截断）
 js/engine/count.js    精确覆盖计数器：四态读数，绝不把"预算耗尽"说成"唯一"
@@ -21,6 +21,10 @@ js/main.js            接线：DOM、指针与键盘、时钟、存档、busy �
 js/store.js           localStorage：成绩、续局档、seed 游标（存档**不带解**）
 tools/                闸：engine-test / ui-smoke / balance（node）+ verify.sh / scenarios.js / playtest.cjs（浏览器）
 ```
+
+树里那两句"有出处"的话在这里落回坐标：两个视图是 `index.html:33` 与 `index.html:83` 这两节，
+规则表那个空的 `<ol>` 在 `index.html:77`，句子由 `js/main.js:534-542` 从引擎的 `RULE_TEXT` 填进去；
+`#board` 那句 `touch-action: none` 的理由写在 `css/game.css:189-193`。
 
 ## 落子是"段"，不是"格"
 
@@ -134,7 +138,7 @@ B5（`tools/balance.mjs:130`）是天花板观测：10×10 每次真的抽 8 盘
 `Store.saveResume` 写的是题面（spec + 底纹 + 数字）+ 玩家的段串 + 用时（`js/store.js:198`），
 **没有解**。续局走 `rebuild(spec, gray, nums, seed)`（`js/engine/tiers.js:131`），
 它把 `judge()` 那条合取当场重跑一遍再返回 puzzle；证不过就丢弃这份存档并点名拒在哪一条
-（`js/main.js:412-430`，`rb.ok` 为假时 `Store.clearResume()` 在 `js/main.js:423`）。坏档、被人改过的档绝不能变成一个"答案由存档定义"的盘。
+（`js/main.js:412-430`，`rb.ok` 为假时 `Store.clearResume()` 在 `js/main.js:424`）。坏档、被人改过的档绝不能变成一个"答案由存档定义"的盘。
 
 由此有两个看起来奇怪但都写死了的口径：
 
@@ -205,13 +209,61 @@ seed 游标 `peekSeed`（`js/store.js:158`）是自增小整数，**默认种子
 
 ## 闸的地图与它的口径
 
-```
-node tools/engine-test.mjs   条款贯通 / 池完整性 / 计数器四态 / 出题×判据 / 确定性 / 两套实现（tools/engine-test.mjs:32-295）
-node tools/ui-smoke.mjs      解答判通关 / 画的==点的 / 零猜测推到通关 / 键鼠与存档口径 / 续局生产路径 / 两半的墨分得开（tools/ui-smoke.mjs:111-331）
-node tools/balance.mjs       B1–B6（tools/balance.mjs:54-177）
-bash tools/verify.sh         真浏览器：core play win mouse touch keys save（tools/verify.sh:78）× 两种 URL 形态
-GATE_SELFTEST=1 bash tools/verify.sh   阴性自证：每份报告必须点名吃下种下的错（tools/verify.sh:231-256）
-```
+- `node tools/engine-test.mjs` —— 条款贯通 / 池完整性 / 计数器四态 / 出题×判据 / 确定性 / 两套实现
+  （`tools/engine-test.mjs:32-295`）。
+- `node tools/ui-smoke.mjs` —— 解答判通关 / 画的==点的 / 零猜测推到通关 / 键鼠与存档口径 / 续局生产路径 /
+  两半的墨分得开（`tools/ui-smoke.mjs:111-331`）。
+- `node tools/balance.mjs` —— B1–B6（`tools/balance.mjs:54-177`）。
+- `node tools/docs-test.mjs` —— 文档行号对账：这两份文档里每一条 `文件:行号` 指回的是不是真代码
+  （`tools/docs-test.mjs:126-163` 的 `audit`）。
+- `bash tools/verify.sh` —— 真浏览器：core play win mouse touch keys save（`tools/verify.sh:78`）× 两种 URL 形态。
+- `GATE_SELFTEST=1 bash tools/verify.sh` —— 阴性自证：每份报告必须点名吃下种下的错（`tools/verify.sh:231-256`）。
+
+前四条都是纯 node 的闸，其中 engine-test / ui-smoke / docs-test 三条挂在 `npm test`（`package.json` 的 `test`）
+上、balance 在 CI 里单列一步；后两条要起 headless Chrome，是 CI 的另一个 job。
+
+### 文档行号对账这条腿口径（它与它没覆盖的）
+
+README / DESIGN 里每个数字后面都挂着 `文件:行号`。这句"行号指本仓代码"以前没有机器读回来过——
+上一节那句"断言里不许有抄来的常数"管的是代码，文档自己那份常数没人管。这条腿补的就是这一段，
+它是家族标准（ferry / tatamibari / yajilin / lightsout / tapa 同一份规则）在本仓的那一份：
+
+- **锚点**：只查"行号不超过文件长度"连隔壁一行都抓不住。贴着引用写在反引号里的那个名字，必须真的出现在
+  被指的那几行里。本仓这一把第一次跑就抓出一条真漂：`Store.clearResume()` 在 `js/main.js:424`，
+  而文档原先把它挂在隔壁那一行（`:423`）。
+- **续引**（完整引用后面只写 `:NN`）：向**同一句里最近的那条完整引用**借路径；句号、分号、空行、新标题都
+  截断这次借。**正文里提到一个文件名不构成出处**——那种写法计入「无法定址」，宁可数出来，也不在错的文件上判绿。
+- **跨仓引用**（`../别的仓/…:NN`）按**形状**分出去，只数不验：单仓 checkout 里根本读不到兄弟仓，
+  按"文件在不在"决定红不红就是一条随环境漂的闸。本仓一份都没有，所以那个数是 0——它照样被等值闸钉着，
+  哪天有人补一条跨仓引用而忘了改文档，红的是这条腿。
+- **等式闸**：文档转写的实测数（下面那五个）必须逐个等于这条腿自己数到的，**删掉数字同样算红**；
+  输入集从目录里现数（`docFiles`），不手抄名单。
+- 九把假引用（不存在 / 越界 / 行数写错 / 四种写法各自的锚点漂 / 无锚点那条整段落在空行上——空行靶子的
+  行号当场从 `js/engine/generate.js` 数出来、不写死常量，那位子哪天被填上内容这一把会连着 `blankAt > 0`
+  一起失效并被抓住——第九把管**前缀不算整词**：锚点写 `node`，被指的第 34 行声明的是 `nodes`）必须一把不落，
+  六种真贴法必须判绿，
+  外加一把"把本仓一条界内的真引用挪歪一格"的阳性刀——这一把红的是 `js/engine/generate.js:68`
+  那几行里没有 `makePuzzle`，也就是锚点腿真有牙齿。
+- 空行那一把另有一次性的牙齿证明（日志 `_tmp-doublechoco-blank-teeth.log`，判词 `TEETH_OK`）：在 `_scratch/`
+  下的**副本**里把 DESIGN 中一条界内、当前不落在空行的真引用改指到 `js/engine/generate.js` 的第 17 行——
+  副本动刀之前自己就是绿的，动刀后 rc 1、只交出 1 行红、红行点名「整段是空行」并把「解析 134 条」原样印在
+  那一行里（所以那条红不来自计数对账）；改回去 rc 回 0。盘上的仓一个字没改，副本跑完即删。
+- **锚点认整词，不认子串。** 换口径之前这一格查的是"被指的那几行里有这串字符"：`node` 坐在声明 `nodes` 的
+  那一行上也算命中，任何一个碰巧含它的标识符也算命中——于是这道比它替掉的那份手抄锚点表**更弱**，一次真的
+  漂会被读成绿。现在要求名字两侧不得再是标识符字符（字母、数字、`_`、`$`），第九把假引用写的正是这种前缀
+  写法：这条腿哪天退回子串，那把刀当场少一把、台账那条断言当场红。本仓没有另一张手抄的字面锚点表，所以
+  只有这一处口径、不存在"两处口径不同"的分工。本轮换口径时两份文档里已有的带锚点引用没有一条因此变红
+  （红的是这条腿自己插了行、闸的地图里挂着的那段 `audit` 区间漂到隔壁，已 grep 真实行号改回），
+  所以这一道是加严，不是修一处已经存在的漂。
+  牙是两双腿，都跑在 `_scratch/` 下的同名副本里：读数 `_tmp-doublechoco-word-teeth.log`，判词 `TEETH_OK`——
+  A 腿把锚点检查改回子串，24 条断言里只有那一条假引用台账红，而它交出的红行恰好少了 `node` 那一把；
+  B 腿把两份文档里每一条 `Store.clearResume()` 真引用的名字截成它的前缀，锚点那一格为它红并点名
+  「那几行里没有」（两处文档各截一处以上，是为了不把同一个坐标留成两种锚点）；这一腿交两行红，第二行是
+  第 7 节那把"挪歪一格"的针——它 audit 的是整份文档文本，所以同一处漂被它数到第二次，不是另一种失败；
+  两双腿复原后都回全绿。
+
+本轮读数（由 `node tools/docs-test.mjs` 自己打印）：解析 134 条、续引 5 条、无法定址 0 处、
+14 条贴着引用写了指认、跨仓引用 0 处。
 
 口径（都是被红过之后写下来的）：
 
@@ -230,7 +282,7 @@ GATE_SELFTEST=1 bash tools/verify.sh   阴性自证：每份报告必须点名�
 
 ## CI 与 Pages
 
-`.github/workflows/ci.yml`：`check` job（语法 + engine-test + ui-smoke + balance + 入口文件），
+`.github/workflows/ci.yml`：`check` job（语法 + engine-test + ui-smoke + balance + docs-test + 入口文件），
 `browser` job（Node 22：台架用裸 CDP 驱动，靠的是 Node 22 才有的全局 WebSocket/fetch）跑
 `bash tools/verify.sh` 与 `GATE_SELFTEST=1` 两步。阴性自证在 CI 里也必须跑，否则"这条闸会红"
 这句话只在作者机器上成立过。

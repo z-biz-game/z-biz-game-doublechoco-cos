@@ -22,10 +22,7 @@ jobs:
       # No npm install: the game has zero runtime dependencies, and pulling a browser or a
       # bundler into CI to prove nothing is how a repo starts failing on a network flake.
       - name: Syntax check every source
-        run: |
-          for f in $(git ls-files 'js/*.js' 'js/*/*.js'); do node --check "$f" || exit 1; done
-          node --check server.cjs
-          for f in $(git ls-files 'tools/*.mjs' tools/scenarios.js tools/playtest.cjs); do node --check "$f" || exit 1; done
+        run: npm run check
 
       # The real promise: every generated board has one solution and is reachable by the named
       # pencil rules. Plain Node, so it guards merges without a browser.
@@ -66,8 +63,23 @@ jobs:
       - name: Difficulty ladder is still measured
         run: node tools/balance.mjs
 
+      # 文档行号对账：README/DESIGN 里每一条 `文件:行号` 必须在盘上、在界内，且贴着引用写的那个名字
+      # 真的出现在被指的那几行里。这份必须和 npm test 里那条同一条——文档里的坐标是给人核对用的，
+      # 只在作者机器上对过一遍等于没有对过。
+      - name: Docs line citations point at real code
+        run: node tools/docs-test.mjs
+
       - name: Entry files exist
         run: test -f index.html && grep -q '<canvas' index.html && grep -q 'js/main.js' index.html && grep -q 'doublechoco' index.html
+      # 部署集闸：按 tools/assemble-site.sh 那份清单真拷一遍产物，要求页面会去要的东西
+      # 都在里面。这一仓曾经因为清单落后于页面而线上 404 自己的 manifest/sw.js/图标，
+      # 而本地一切全绿——因为本地根本没有「按清单拷」这一步。
+      - name: Deploy set gate
+        run: node tools/deploy-set.mjs
+      # 阴性自证：每一类断言当场被打红一次，闸必须点名吃掉那一刀；写在注释里的假路径
+      # 必须不算引用。钉住的条数由这一跑证明它真的会红，不是由记性证明。
+      - name: Deploy set gate proves it can fail
+        run: node tools/deploy-set-selftest.mjs
 
   # 真浏览器闸：headless Chrome + CDP，读 DOM 文本/几何、画布像素与真实输入事件，不读内部标志位。
   # 独立 job，node 22 而不是 check job 的 20：台架是裸 CDP 驱动，用的是 Node 22 才有的全局

@@ -2,34 +2,18 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" /><meta name="twitter:card" content="summary">
 <meta name="theme-color" content="#0A0D14" />
 <title>双巧克力方块 · DOUBLE CHOCO（ダブルチョコ）</title>
-<meta name="description" content="DOUBLE CHOCO / ダブルチョコ / 双巧克力方块：棋盘一半早已印成灰色，画实线把盘子分成一块一块，每一块都必须是一白色区加一灰色区、两区同形同尺寸（可旋转、可镜像）；数字数的是这一格自身颜色在本块里的格数，也就是这块的一半。每一局唯一解、每一局都能用具名规则推到底，提示只说推得出的那一步。" />
-<!-- 图标全部是盘上的真 PNG（由 assets/gen/gen_art.py 从同一张 1024 母图缩出来）。
-     原先这里是一张内联 SVG：它确实挡住了浏览器去域名根探 /favicon.ico 的那一枪，
-     但一张不能装桌面、不能上商店的图不叫图标。SVG 冒充 PNG 是这仓的资产闸明令不收的形态。 -->
-<link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16.png" />
-<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png" />
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-<link rel="manifest" href="manifest.webmanifest" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Double Choco" />
-<!-- 抓取器不解析相对路径的 og:image，所以这里必须是部署后的绝对 URL（Pages 带仓名前缀）。 -->
-<meta property="og:type" content="website" />
-<meta property="og:site_name" content="DOUBLE CHOCO" />
-<meta property="og:title" content="DOUBLE CHOCO · 双巧克力方块 · ダブルチョコ" />
-<meta property="og:description" content="半盘灰早已印好，你只画区界：每一块都得折成一白一灰两个同形的区。每局唯一解，每一刀都有具名规则作证。" />
-<meta property="og:url" content="https://z-biz-game.github.io/z-biz-game-doublechoco-cos/" />
-<meta property="og:image" content="https://z-biz-game.github.io/z-biz-game-doublechoco-cos/icons/og-cover.png" />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:image" content="https://z-biz-game.github.io/z-biz-game-doublechoco-cos/icons/og-cover.png" />
+<meta name="description" content="DOUBLE CHOCO / ダブルチョコ / 双巧克力方块：棋盘一半早已印成灰色，画实线把盘子分成一块一块，每一块都必须是一白色区加一灰色区、两区同形同尺寸（可旋转、可镜像）；数字数的是这一格自身颜色在本块里的格数，也就是这块的一半。每一局唯一解、每一局都能用具名规则推到底，提示只说推得出的那一步。" /><meta property="og:title" content="双巧克力方块 · DOUBLE CHOCO（ダブルチョコ）"><meta property="og:description" content="DOUBLE CHOCO / ダブルチョコ / 双巧克力方块：棋盘一半早已印成灰色，画实线把盘子分成一块一块，每一块都必须是一白色区加一灰色区、两区同形同尺寸（可旋转、可镜像）；数字数的是这一格自身颜色在本块里的格数，也就是这块的一半。每一局唯一解、每一局都能用具名规则推到底，提示只说推得出的那一步。"><meta property="og:image" content="https://z-biz-game.github.io/z-biz-game-doublechoco-cos/icons/icon-512.png"><meta name="twitter:image" content="https://z-biz-game.github.io/z-biz-game-doublechoco-cos/icons/icon-512.png">
+<!-- Inline icon: without it the browser probes the Pages domain root for /favicon.ico and logs a 404. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230A0D14'/%3E%3Crect x='5' y='5' width='10' height='10' fill='%235B5F6B'/%3E%3Crect x='17' y='5' width='10' height='10' fill='%23EFE6DA'/%3E%3Crect x='5' y='17' width='10' height='10' fill='%23EFE6DA'/%3E%3Crect x='17' y='17' width='10' height='10' fill='%235B5F6B'/%3E%3Cpath d='M16 3v26M3 16h26' stroke='%23E0A96D' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="css/game.css" />
+
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
 </head>
 <body data-genre="doublechoco">
 <div id="app">
@@ -39,8 +23,8 @@
       <p class="sub">ダブルチョコ · 双巧克力方块 · Nikoli slug <code>double_choco</code></p>
     </div>
     <div class="top-actions">
-      <button id="btn-pause" class="ghost" type="button" aria-pressed="false" aria-keyshortcuts="P Space">暂停</button>
-      <button id="btn-sound" class="ghost" type="button" aria-pressed="true" aria-keyshortcuts="M">音效 开</button>
+      <button id="btn-sound" class="ghost" type="button" aria-pressed="true" title="静音 / 恢复音效 · M">音效 开</button>
+      <button type="button" id="btn-pause" class="ghost" aria-pressed="false" title="暂停 (P)">暂停</button><button type="button" id="btn-fullscreen" class="ghost" aria-pressed="false" title="全屏 (F)">全屏</button>
       <button id="btn-motion" class="ghost" type="button" aria-pressed="false">动效 全</button>
       <button id="btn-full" class="ghost" type="button" aria-pressed="false" aria-keyshortcuts="F">全屏</button>
       <button id="btn-howto" class="ghost" type="button" aria-pressed="false" aria-keyshortcuts="?" title="玩法与按键">玩法</button>
@@ -214,52 +198,7 @@
   </footer>
 </div>
 
-<!-- classic script，按依赖拓扑序装载：这一份顺序就是 js/ 里那张模块图的拓扑序，
-     也是官方量具（cos_load_sweep.js / cos_frame_probe.js）读文档顺序去装载的顺序——它们按文档
-     顺序以 classic script 执行这些 src，写成 type="module" 会在第一行 import 上 SyntaxError，
-     整个关卡内对拍就此变成"无法比对"。另一个理由是 file://：浏览器对 file:// 上的 module
-     script 一律按 CORS 拦死，而这一仓承诺双击 index.html 就能玩。
-     顶层名全部落在同一个 global lexical scope（15 份里无重名，tools/loader.mjs 每次都校验）。
-     注：这段注释里不许出现尖括号形式的 script 字面量——量具的正则会把注释读成一个块的开头。 -->
-<script src="js/theme.js"></script>
-<script src="js/anim.js"></script>
-<script src="js/session.js"></script>
-<script src="js/store.js"></script>
-<script src="js/audio/synth.js"></script>
-<script src="js/engine/rules.js"></script>
-<script src="js/engine/blocks.js"></script>
-<script src="js/engine/count.js"></script>
-<script src="js/engine/pencil.js"></script>
-<script src="js/engine/rng.js"></script>
-<script src="js/engine/generate.js"></script>
-<script src="js/engine/tiers.js"></script>
-<script src="js/ui/game.js"></script>
-<script src="js/render/board.js"></script>
-<script src="js/main.js"></script>
-<script>
-// 离线壳的注册。三条都是实测出来的口径：
-//  * file:// 下**整段跳过**且不抛未捕获异常——这一仓要能被直接双击 index.html 打开玩，
-//    而 navigator.serviceWorker 在那种上下文里 register 会 reject 一个 SecurityError。
-//  * scope 显式取当前目录：Pages 把本站挂在 /z-biz-game-doublechoco-cos/ 下，
-//    不写 scope 会拿到根作用域然后注册失败（本地根形态与线上前缀形态因此走同一条代码）。
-//  * 注册失败只 warn：断网、隐私模式、上级页面禁止 SW 都不该让一盘能玩的题变成白屏。
-  window.dcSW = { state: 'skipped', why: '' };
-  if (location.protocol === 'https:' || /^http:$/i.test(location.protocol)) {
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js', { scope: './' })
-          .then((reg) => { window.dcSW = { state: 'registered', why: reg.scope }; })
-          .catch((err) => {
-            window.dcSW = { state: 'failed', why: String(err && err.message || err) };
-            console.warn('sw register skipped:', err && err.message);
-          });
-      });
-    } else {
-      window.dcSW = { state: 'unsupported', why: 'navigator.serviceWorker' };
-    }
-  } else {
-    window.dcSW = { state: 'skipped', why: location.protocol };
-  }
-</script>
+<script type="module" src="js/main.js"></script>
+  <script src="js/sw-register.js"></script>
 </body>
 </html>
