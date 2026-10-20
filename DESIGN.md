@@ -142,7 +142,7 @@ B5（`tools/balance.mjs:130`）是天花板观测：10×10 每次真的抽 8 盘
 
 由此有两个看起来奇怪但都写死了的口径：
 
-- 续局的 `puzzle.stats = { ms }` 装的是**重证耗时**，不是当初的出题耗时（`js/main.js:429` 的 `puzzle`），
+- 续局的 `puzzle.stats = { ms }` 装的是**重证耗时**，不是当初的出题耗时（`js/main.js:429-430` 的 `puzzle.stats`），
   而 `stats.steps` 是 undefined ⇒ 界面"这一局实测推理"印「—」。不印一个没有量过的数。
 - 续局走的是重证而不是重新出题（那笔实测成本极档中位几百毫秒不该重付），
   这条走法由遮罩文案作证：`续局重证中：seed N`（`resume` 腿在 `tools/scenarios.js:645`，
@@ -179,7 +179,7 @@ seed 游标 `peekSeed`（`js/store.js:158`）是自增小整数，**默认种子
 `#board` 的 `touch-action: none`（`css/game.css:189-193` 的 `none`）是被真事件测出来的：
 `manipulation` 只关双击缩放、仍把手势交给页面滚动，触屏一笔画在第一条之后就来 `pointercancel` +
 `lostpointercapture`，第二条根本画不上——而界面明明白白写着"拖过去能连着画一条"。
-同时 `js/main.js:648` 接住 `pointercancel`：手势被系统收走时不会补 `pointerup`，
+同时 `js/main.js:649` 的 `pointercancel` 接住：手势被系统收走时不会补 `pointerup`，
 不接这一句，`drag` 会留在原位，之后落在盘上的任何一次移动都还在替一个已经不存在的按住状态画线。
 这两件事都不靠 CSS 值作证，靠 `tools/playtest.cjs:492` 的 `diffIx` 那一条断言作证（拖一次 = 两处落子，逐位比对段串）。
 
@@ -263,7 +263,7 @@ README / DESIGN 里每个数字后面都挂着 `文件:行号`。这句"行号�
   两双腿复原后都回全绿。
 
 本轮读数（由 `node tools/docs-test.mjs` 自己打印）：解析 134 条、续引 5 条、无法定址 0 处、
-121 条贴着引用写了指认、跨仓引用 0 处。
+122 条贴着引用写了指认、跨仓引用 0 处。
 
 口径（都是被红过之后写下来的）：
 

@@ -94,7 +94,7 @@ GATE_SELFTEST=1 bash tools/verify.sh   # 阴性自证：种一条注定错的期
 
 `node tools/docs-test.mjs` 对的是这两份文档自己：每一条 `文件:行号` 指回的必须在盘上、在界内、不得整段落在空行上，
 而且贴着引用写的那个名字必须以**完整标识符**出现在被指的那几行里。本轮读数（由这条腿自己打印，不手数）：
-解析 134 条、续引 5 条、无法定址 0 处、121 条贴着引用写了指认、跨仓引用 0 处。
+解析 134 条、续引 5 条、无法定址 0 处、122 条贴着引用写了指认、跨仓引用 0 处。
 它第一次跑就点名了一条真漂：`Store.clearResume()` 在 `js/main.js:424`，而这句话原先挂在 `:423`。
 锚点这一格认整词、不认子串：`node` 坐在声明 `nodes` 的那一行上，子串算命中、整词不算（两侧再是字母、数字、
 `_`、`$` 就不算完整名字），所以一次真的漂会被旧口径读成绿——它比它替掉的那份手抄锚点表更弱。第九把假引用写的
@@ -137,7 +137,7 @@ GATE_SELFTEST=1 bash tools/verify.sh   # 阴性自证：种一条注定错的期
 
 - Nikoli（英文）<https://www.nikoli.co.jp/en/puzzles/double_choco/> —— 规则原句逐字抄在 `js/engine/rules.js:1-21` 的 `Nikoli` 那一段。
 - Cross+A <https://crossa.boy.jp/> 的 `#DoubleChoco` 段 —— 同一规则的另一种表述，两句"area"都按字面取"连通的一片"。
-- 官方 4×4 例题与其解答图 —— 题面与解答各自逐像素量得，钉成 `js/engine/rules.js:144-152` 的 `golden`；
+- 官方 4×4 例题与其解答图 —— 题面与解答各自逐像素量得，钉成 `js/engine/rules.js:144-152` 的 `OFFICIAL_SOLUTION`（题面 `OFFICIAL` 在同一段）；
   `tools/engine-test.mjs:32` 的 `golden`（第 1 段）用它当**不来自我们计数器**的证人。
 
 ## 上线的到底是哪一批文件
