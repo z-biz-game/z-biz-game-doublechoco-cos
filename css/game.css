@@ -449,6 +449,22 @@ button[aria-pressed='true'] { border-color: var(--accent); background: var(--acc
   .menu-cols { grid-template-columns: minmax(0, 1fr); }
   .panel { order: 2; }
   .stage { order: 1; }
+  /* 面板落到盘面下面之后，竖直方向就成了稀缺资源：十字盘占三行（147px），
+     而横排只占一行（48px）——这 99px 正好是手机竖屏（390×844）里把
+     「换一局 / 回选档」两枚按钮挤出视口的那一截。实测：改之前这两枚按钮的中心在
+     y=899（视口高 844），elementFromPoint 读回 null，于是"点得到"这句话不成立。
+     横排的读法与十字一样（↑ ← 光标 → ↓），只是把四个方向摆成一条线。 */
+  .pad {
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: 1fr;
+    max-width: none;
+    width: 100%;
+  }
+  .edge.up { grid-area: 1 / 1; }
+  .edge.left { grid-area: 1 / 2; }
+  .pad-cursor { grid-area: 1 / 3; }
+  .edge.right { grid-area: 1 / 4; }
+  .edge.down { grid-area: 1 / 5; }
   /* 窄屏才是刘海与 Home 指示条真正会出现的那一支，所以这里的 padding 也必须带着 env()：
      写死 12px 会把宽屏那一行刚建立的 safe-area 适配整条抹掉（后写的同名声明就是赢家）。 */
   #app {

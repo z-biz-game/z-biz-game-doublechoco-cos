@@ -22,16 +22,16 @@ js/store.js           localStorage：成绩、续局档、seed 游标（存档**
 tools/                闸：engine-test / ui-smoke / balance（node）+ verify.sh / scenarios.js / playtest.cjs（浏览器）
 ```
 
-树里那两句"有出处"的话在这里落回坐标：两个视图是 `index.html:33` 的 `view` 与 `index.html:83` 的 `view` 这两节，
-规则表那个空的 `<ol>` 在 `index.html:77` 的 `rules`，句子由 `js/main.js:534-542` 的 `MENU_RULES` 从引擎的 `RULE_TEXT` 填进去；
-`#board` 那句 `touch-action: none` 的理由写在 `css/game.css:189-193` 的 `none` 注释里。
+树里那两句"有出处"的话在这里落回坐标：两个视图是 `index.html:51` 的 `view` 与 `index.html:101` 的 `view` 这两节，
+规则表那个空的 `<ol>` 在 `index.html:95` 的 `rules`，句子由 `js/main.js:761-764` 的 `MENU_RULES` 从引擎的 `RULE_TEXT` 填进去；
+`#board` 那句 `touch-action: none` 的理由写在 `css/game.css:217-221` 的 `none` 注释里。
 
 ## 落子是"段"，不是"格"
 
 这一局的唯一动作是在两个相邻格之间画一条界（或擦掉）。所以状态机的主语不是格子内容而是**段**：
-`segmentTable` 列出全部内部虚线，段数 = `R·(C−1) + (R−1)·C`（`js/ui/game.js:28-43` 的 `segmentTable`），
-4×4=24、6×6=60、8×8=112。`segIx` 是 `(i,j) → k` 的索引（`js/ui/game.js:52` 的 `segIx`），
-渲染（`js/render/board.js:55` 的 `segLine`）、命中（`:79` 的 `hitSegment`）、落子（`js/ui/game.js:136` 的 `toggleSeg`）都走这一张表，
+`segmentTable` 列出全部内部虚线，段数 = `R·(C−1) + (R−1)·C`（`js/ui/game.js:23-38` 的 `segmentTable`），
+4×4=24、6×6=60、8×8=112。`segIx` 是 `(i,j) → k` 的索引（`js/ui/game.js:47` 的 `segIx`），
+渲染（`js/render/board.js:118` 的 `segLine`）、命中（`:154` 的 `hitSegment`）、落子（`js/ui/game.js:131` 的 `toggleSeg`）都走这一张表，
 不存在"界面另有一套段编号"。
 
 区域是"跨不过已画之界"的连通分量（`js/ui/game.js:81-100` 的 `partition`），不是"每画一条界就断成两半"。
@@ -41,28 +41,28 @@ tools/                闸：engine-test / ui-smoke / balance（node）+ verify.s
 
 ## 判据、读数、画面是三层，接口上不许混
 
-`recompute()` 一次算出所有派生量（`js/ui/game.js:102-121` 的 `recompute`），三份东西各有各的口径：
+`recompute()` 一次算出所有派生量（`js/ui/game.js:97-116` 的 `recompute`），三份东西各有各的口径：
 
-- **判据**：`rawErrs` 是 `clauses()` 的原样产出，`winFacts()` 读的正是未过滤的这一份（`js/ui/game.js:304-314` 的 `winFacts`）。
+- **判据**：`rawErrs` 是 `clauses()` 的原样产出，`winFacts()` 读的正是未过滤的这一份（`js/ui/game.js:299-308` 的 `winFacts`）。
 - **宽容**：开局一条界都没画时，整盘就是一个大区域，那时报一串违反只会让玩家以为题面坏了。
   所以给状态行与读数的 `errs` 在 `touched` 之前是空的（`js/ui/game.js:105-112` 的 `touched`）——**这份宽容只给读数，不给胜负**。
 - **进度**：`remaining()` 是"还差几条界"，它是读数不是判据，故意**不在** `winFacts()` 的键里。
   闸断的是这个缺席：`胜负不读进度：winFacts 里没有 remaining 这一项`（`tools/scenarios.js:538` 的 `remaining`）。
 
-`wantCuts`（要画几条）由唯一解自己数出来：段总数减去"两格同块"的相邻对（`js/ui/game.js:114-118` 的 `wantCuts`）。
+`wantCuts`（要画几条）由唯一解自己数出来：段总数减去"两格同块"的相邻对（`js/ui/game.js:113` 的 `wantCuts`）。
 这里刻意不读 `puzzle.stats.cuts`，因为续局那条路（`rebuild`）压根没有出题过程；
-两处口径的一致由 `tools/ui-smoke.mjs:219` 的 `wantCuts` 拿出货盘逐盘断言（`wantCuts == stats.cuts`）。
+两处口径的一致由 `tools/ui-smoke.mjs:265` 的 `wantCuts` 拿出货盘逐盘断言（`wantCuts == stats.cuts`）。
 
 "过判据"与"等于答案"是两件事，所以要有一个显式差集：`relDiff()` 把玩家划分与唯一解的同块关系逐边比
-（`js/ui/game.js:124-127` 的 `relDiff`），`mismatch` 进通关判据，`codes()`/`solutionCodes()` 的逐位比较进闸。
+（`js/ui/game.js:119-122` 的 `relDiff`），`mismatch` 进通关判据，`codes()`/`solutionCodes()` 的逐位比较进闸。
 
 ## 唯一性靠"完整池"，不靠"我的求解器只找到一条"
 
 三段独立的地基，缺一不可：
 
 1. **池是完整的。** `exactBlocks` 在这块底纹上枚举所有合法块；撞预算时它 `throw EnumBudget` 而**绝不返回半池**
-   （`js/engine/blocks.js:86-92` 的 `exactBlocks`）。所以"没抛的那一次"交出的就是全池——`tools/engine-test.mjs:96` 的 `head`（第 2b 段）
-   把这一句钉成断言，`tools/engine-test.mjs:66` 的 `head`（第 2 段）再拿 `tools/independent.mjs:71` 的 `brutePool`（子集幂集暴力池）做**双向相等**对照
+   （`js/engine/blocks.js:86-92` 的 `exactBlocks`）。所以"没抛的那一次"交出的就是全池——`tools/engine-test.mjs:98` 的 `head`（第 2b 段）
+   把这一句钉成断言，`tools/engine-test.mjs:68` 的 `head`（第 2 段）再拿 `tools/independent.mjs:71` 的 `brutePool`（子集幂集暴力池）做**双向相等**对照
    （少块 = 把唯一性算窄了，多块 = 算宽了）。
 2. **计数是穷尽的。** `count()` 的读数分四态，不许混说：`exhaustive & 1` 才是唯一；
    `exhaustive & 0` 是死盘；`!exhaustive & stop=maxSol` 只证明"≥maxSol"；
@@ -71,22 +71,22 @@ tools/                闸：engine-test / ui-smoke / balance（node）+ verify.s
 3. **两条互不复用的实现。** `tools/independent.mjs` 自带一份 D4 变换（`tools/independent.mjs:15` 的显式矩阵
    vs `js/engine/rules.js:24-27` 的函数表）、一份 BFS 连通（`tools/independent.mjs:25-31` 的 `link`）、
    一份整盘条款（`tools/independent.mjs:34-67` 的 `check`），故意不 import 引擎任何东西。
-   `tools/engine-test.mjs:295` 的 `head`（第 7 段）要求两套实现在一个突变族上**开火的条款集合一致**——
+   `tools/engine-test.mjs:297` 的 `head`（第 7 段）要求两套实现在一个突变族上**开火的条款集合一致**——
    自我一致的假设不算第二套路。
 
 `judge()`（`js/engine/pencil.js:250-275`）是这些的合取：穷尽且唯一 → 铅笔推满 → `check` 零违反 → 独立实现附议。
-`makePuzzle` 出货前每一盘都过它（`js/engine/generate.js:140-142` 的 `judge`，终态重证），`rebuild` 续局时当场再过一遍
-（`js/engine/tiers.js:141` 的 `judge`）。**"唯一"与"可推"是同一次事件**，所以这两句承诺的成本一起付、也一起红。
+`makePuzzle` 出货前每一盘都过它（`js/engine/generate.js:137` 的 `judge`，终态重证），`rebuild` 续局时当场再过一遍
+（`js/engine/tiers.js:137` 的 `judge`）。**"唯一"与"可推"是同一次事件**，所以这两句承诺的成本一起付、也一起红。
 
 ## 提示不越权
 
-界面上提示按的是同一份 `RULE_TEXT`（`js/engine/pencil.js:25-37`），菜单上那列规则就是从这张表渲染的
-（`js/main.js:534-542` 的 `MENU_RULES`）：引擎改了名，页面当场少一条，不会留下一句引擎里已不存在的规则。
+界面上提示按的是同一份 `RULE_TEXT`（`js/engine/pencil.js:22-34`），菜单上那列规则就是从这张表渲染的
+（`js/main.js:761-764` 的 `MENU_RULES`）：引擎改了名，页面当场少一条，不会留下一句引擎里已不存在的规则。
 
 - 提示的落点来自边级 `p.decided`，并且必须能在 `p.trace` 里找回点名它的那条规则；**没有证人就不落子**
-  （`js/ui/game.js:201-216` 的 `pencilNow`、`:239-289` 的 `hint`）。
-- 推不动／正矛盾时只出话不落子，也**不计一次求助**（`js/main.js:321-335` 的 `useHint`：`info.stalled || info.conflict` 直接 return）。
-- 撤销一步不退还求助次数（`tools/ui-smoke.mjs:228` 的 `hints`）：提示是买来的信息，撤回动作不该把它变便宜。
+  （`js/ui/game.js:196-212` 的 `pencilNow`、`:234-284` 的 `hint`）。
+- 推不动／正矛盾时只出话不落子，也**不计一次求助**（`js/main.js:489-503` 的 `useHint`：`info.stalled || info.conflict` 直接 return）。
+- 撤销一步不退还求助次数（`tools/ui-smoke.mjs:274` 的 `hints`）：提示是买来的信息，撤回动作不该把它变便宜。
 
 一盘用到几条具名规则是**盘的属性**，不是承诺。实测：原始铅笔 trace 在 sho 用 2–3 条、其余三档 3–5 条；
 走界面提示这条路是 sho 1–2 条、chuu/gao 2–4 条。所以 `hint` 腿钉在自己选的那一输入上
@@ -95,16 +95,16 @@ tools/                闸：engine-test / ui-smoke / balance（node）+ verify.s
 
 ## 出题：预算全是确定量，墙钟只配观测
 
-`makePuzzle`（`js/engine/generate.js:67`）的路径是：随机底纹 → 在完整池上铺一块解 → 满数字起点先过 `judge`
+`makePuzzle`（`js/engine/generate.js:63`）的路径是：随机底纹 → 在完整池上铺一块解 → 满数字起点先过 `judge`
 → 按洗牌顺序逐格删数字，**每删一格重跑一次 `judge`**，红了就撤掉那一格（`js/engine/generate.js:110-122` 的 `judge`）。
 理由：删数字不破坏唯一性，但**不保证**不破坏可推性，所以不能靠单调性假设省掉重跑。
 
 三条口径上的硬规定：
 
 - 预算只有确定量：`capWork`（枚举工作量次数）、`shades`（底纹次数）、`tilingsPerShade`、`nodeCap`。
-  判定链上没有任何一步读墙钟（`js/engine/generate.js:63-66` 的 `enumMs`、`js/engine/blocks.js:98` 的 `enumMs`）。
+  判定链上没有任何一步读墙钟（`js/engine/generate.js:59-62` 的 `enumMs`、`js/engine/blocks.js:97` 的 `enumMs`）。
   墙钟进判定 ⇒ 快慢机器抽到不同的盘，"同一 seed 同一档同一盘"就作废；
-  `tools/engine-test.mjs:264` 的 `head`（第 6 段）断言的是这件事，方法就是把耗时从判定链上摘下来单独打印。
+  `tools/engine-test.mjs:266` 的 `head`（第 6 段）断言的是这件事，方法就是把耗时从判定链上摘下来单独打印。
 - 默认值不读环境变量：浏览器里没有 `process`，CI 里设了它就更糟（同一号 seed 因环境换盘）。
   要换预算由调用方显式传 `{capWork}`（`js/engine/blocks.js:90-92` 的 `capWork`）。
 - 成本读数用 `work` 不用 ms：被放弃的底纹也把它做掉的那 `e.n` 次记进总账（`js/engine/generate.js:84-88` 的 `work`），
@@ -112,37 +112,37 @@ tools/                闸：engine-test / ui-smoke / balance（node）+ verify.s
 
 **披露②：出题器有枚举预算，撞预算时它换一张底纹，不放宽判据。**
 因此出货条件是"这一盘在**无上限**规则下唯一且可推"，而不是"每一种底纹都算得起"。
-这句话有两个方向上的读数撑着：`tools/balance.mjs:105` 的 `B3b` 段反过来钉——**出货那一盘的枚举必须没撞预算**，
-否则"无上限"不可证；`tools/balance.mjs:147` 的 `CAP_WORK`（B6）在同一个进程里饿不同预算跑同一批 seed，
+这句话有两个方向上的读数撑着：`tools/balance.mjs:109` 的 `B3b` 段反过来钉——**出货那一盘的枚举必须没撞预算**，
+否则"无上限"不可证；`tools/balance.mjs:151` 的 `CAP_WORK`（B6）在同一个进程里饿不同预算跑同一批 seed，
 打印"出货数 / 换底纹次数 / 总工作量"三条，说明 40 万相对 15 万买到的是更多底纹而不是更多出货。
-B6 还有第四条（`tools/balance.mjs:173` 的 `lits`）：`js/engine/tiers.js:27-28` 那句理由里印着的两个对照数
+B6 还有第四条（`tools/balance.mjs:176` 的 `lits`）：`js/engine/tiers.js:27-28` 那句理由里印着的两个对照数
 是从 tiers.js **原文**解析出来的，必须逐值等于本轮当场跑出的读数——注释改回任何历史值就红，
 "注释讲历史、闸判现在"这种两套账在本仓不给活路。
 
 ## 档位：难度只有量出来的那一种说法
 
-`TIERS`（`js/engine/tiers.js:42-68`）每档带一条 `gold` 数组，四列（steps / cuts / nums / work）都是
+`TIERS`（`js/engine/tiers.js:38-64`）每档带一条 `gold` 数组，四列（steps / cuts / nums / work）都是
 B1 那连续 8 号 seed 的实测值排序后钉住（`js/engine/tiers.js:47-65` 的 `gold`）。
-页面上的"实测推理 X 轮 / 数字 Y 个 / 区界 Z 条"只有一个来源：`tierMed` / `tierMax`（`js/engine/tiers.js:73-74`）。
-红线在 `tools/balance.mjs:93`（`golden`，B3）：**实测四条数组必须逐值等于 gold**——确定量不配带误差带，只配相等。
+页面上的"实测推理 X 轮 / 数字 Y 个 / 区界 Z 条"只有一个来源：`tierMed` / `tierMax`（`js/engine/tiers.js:70`）。
+红线在 `tools/balance.mjs:97`（`golden`，B3）：**实测四条数组必须逐值等于 gold**——确定量不配带误差带，只配相等。
 B2（`tools/balance.mjs:82`）断言阶梯方向：轮次严格升、数字占比严格降；顺序由实测定，不由边长定。
-B4（`tools/balance.mjs:112`）判成本用 `work` 中位严格递增，墙钟只打印 + 一条 `GEN_BUDGET_MS` 上限（`js/engine/tiers.js:40`）。
+B4（`tools/balance.mjs:112`）判成本用 `work` 中位严格递增，墙钟只打印 + 一条 `GEN_BUDGET_MS` 上限（`js/engine/tiers.js:36`）。
 B5（`tools/balance.mjs:130`）是天花板观测：10×10 每次真的抽 8 盘，打印出货率与耗时，断言的方向只有"仍然配不上菜单那句承诺"。
 
-`OUT_OF_MENU`（`js/engine/tiers.js:80-95`）里每一档的理由都必须是这一页能自己验的那种：
-奇数格数是规则结论（`tools/engine-test.mjs:289-291` 的 `odd` 断言 5×5 被 `code==='奇面积'` 拒），
+`OUT_OF_MENU`（`js/engine/tiers.js:76-85`）里每一档的理由都必须是这一页能自己验的那种：
+奇数格数是规则结论（`tools/engine-test.mjs:292-293` 的 `odd` 断言 5×5 被 `code==='奇面积'` 拒），
 10×10 是成本结论（B5 每次复跑打印）。理由注释自己也要有台架，否则它就会烂掉。
 
 ## 存档不带解，续局当场重证
 
 `Store.saveResume` 写的是题面（spec + 底纹 + 数字）+ 玩家的段串 + 用时（`js/store.js:198` 的 `saveResume`），
-**没有解**。续局走 `rebuild(spec, gray, nums, seed)`（`js/engine/tiers.js:131` 的 `rebuild`），
+**没有解**。续局走 `rebuild(spec, gray, nums, seed)`（`js/engine/tiers.js:127` 的 `rebuild`），
 它把 `judge()` 那条合取当场重跑一遍再返回 puzzle；证不过就丢弃这份存档并点名拒在哪一条
-（`js/main.js:412-430` 的 `begin`，`rb.ok` 为假时 `Store.clearResume()` 在 `js/main.js:424`）。坏档、被人改过的档绝不能变成一个"答案由存档定义"的盘。
+（`js/main.js:582-597` 的 `begin`，`rb.ok` 为假时 `Store.clearResume()` 在 `js/main.js:593`）。坏档、被人改过的档绝不能变成一个"答案由存档定义"的盘。
 
 由此有两个看起来奇怪但都写死了的口径：
 
-- 续局的 `puzzle.stats = { ms }` 装的是**重证耗时**，不是当初的出题耗时（`js/main.js:429-430` 的 `puzzle.stats`），
+- 续局的 `puzzle.stats = { ms }` 装的是**重证耗时**，不是当初的出题耗时（`js/main.js:599` 的 `puzzle.stats`），
   而 `stats.steps` 是 undefined ⇒ 界面"这一局实测推理"印「—」。不印一个没有量过的数。
 - 续局走的是重证而不是重新出题（那笔实测成本极档中位几百毫秒不该重付），
   这条走法由遮罩文案作证：`续局重证中：seed N`（`resume` 腿在 `tools/scenarios.js:645`，
@@ -150,36 +150,36 @@ B5（`tools/balance.mjs:130`）是天花板观测：10×10 每次真的抽 8 盘
 
 seed 游标 `peekSeed`（`js/store.js:158`）是自增小整数，**默认种子不是按日期算的**：
 「换一局」必须真的换一盘，而且页面上印的 seed 说真话
-（`js/main.js:432-444` 的 `peekSeed`；浏览器闸里 `seed 是小整数自增号，不是日期/时间戳`、
+（`js/main.js:601-603` 的 `peekSeed`；浏览器闸里 `seed 是小整数自增号，不是日期/时间戳`、
 `游标推到了 seed 之后` 两行钉着）。出不了货就往前推一号，没有"换个随机种子再试"的余地——
 那等于让界面上的 seed 变成假话。
 
 ## 渲染：画的 == 点的 == 看得见的
 
 一条段跨在两种底色上，所以实线与点线**都分两次画、各 clip 进相邻的那一格**，而且两半各挑一种墨
-（灰底配 `Palette.border`、纸底配 `Palette.borderOnPaper`，`js/render/board.js:153-166` 的 `clip`）。
-这不是铺张："一白走两边"在这种题面上就是不成立——落笔的四种墨与底的色距由 `tools/ui-smoke.mjs:323-331` 的 `cdist`
+（灰底配 `Palette.border`、纸底配 `Palette.borderOnPaper`，`js/render/board.js:238-246` 的 `clip`）。
+这不是铺张："一白走两边"在这种题面上就是不成立——落笔的四种墨与底的色距由 `tools/ui-smoke.mjs:364-373` 的 `cdist`
 逐条钉着，尺是题面自己的灰↔纸色差（实测 506，门槛取其 1/4 = 127），同一段还留着一条负样本：
 两半同用近白的 `border` 时，落在纸底的那一半色距只有 19。玩家画了、判据认了、屏幕上什么都没有——
 于是这里有三层各自独立的证据：
 
-- `tools/ui-smoke.mjs:186-190` 的 `solids`：假 canvas 只记账，钉"每一条界画了两半、每一条段两半都是点线、每一半都被 clip"
+- `tools/ui-smoke.mjs:226-236` 的 `solids`：假 canvas 只记账，钉"每一条界画了两半、每一条段两半都是点线、每一半都被 clip"
   （条数一定是 2×，因为这个形状）。
-- `tools/ui-smoke.mjs:323-331` 的 `cdist`：同一份闸里钉"两半的墨都分得开"，并把那种坏写法当成**负样本**钉着
+- `tools/ui-smoke.mjs:364-373` 的 `cdist`：同一份闸里钉"两半的墨都分得开"，并把那种坏写法当成**负样本**钉着
   （它必须沉底，否则"分两半"这句理由就没人读）。
-- `js/render/board.js:55` 的 `segLine` 与 `:79` 的 `hitSegment` 共用一份几何，
-  `tools/ui-smoke.mjs:133` 的 `hitSegment` 要求**每一条**段的中点都被认回同一条段（不是抽样）。
+- `js/render/board.js:118` 的 `segLine` 与 `:154` 的 `hitSegment` 共用一份几何，
+  `tools/ui-smoke.mjs:159-164` 的 `hitSegment` 要求**每一条**段的中点都被认回同一条段（不是抽样）。
 - 起在 `tools/scenarios.js:764` 的 `layout` 腿在真像素上量：逐段两侧与**那一格底色**的色距，
   门槛 `vis`（`tools/scenarios.js:793`）由盘面自己测出的灰白色差推出来，式子是 `vis = round(gap * 0.25)`，
   不抄进闸里当一个常数——代码改了色板而闸还绿，那种绿最没用。
 
-悬停回显只给指针设备（`js/main.js:614-627` 的 `onPointerMove`）：触屏没有"悬停"这个状态，给它设 hover 会让一条
-根本没人指的段亮起来。光标格四条边上的把手点在没有相邻格的那一面不画（`js/render/board.js:196-215` 的 `handles`）。
+悬停回显只给指针设备（`js/main.js:839-854` 的 `onPointerMove`）：触屏没有"悬停"这个状态，给它设 hover 会让一条
+根本没人指的段亮起来。光标格四条边上的把手点在没有相邻格的那一面不画（`js/render/board.js:281-290` 的 `handles`）。
 
-`#board` 的 `touch-action: none`（`css/game.css:189-193` 的 `none`）是被真事件测出来的：
+`#board` 的 `touch-action: none`（`css/game.css:217-221` 的 `none`）是被真事件测出来的：
 `manipulation` 只关双击缩放、仍把手势交给页面滚动，触屏一笔画在第一条之后就来 `pointercancel` +
 `lostpointercapture`，第二条根本画不上——而界面明明白白写着"拖过去能连着画一条"。
-同时 `js/main.js:649` 的 `pointercancel` 接住：手势被系统收走时不会补 `pointerup`，
+同时 `js/main.js:873` 的 `pointercancel` 接住：手势被系统收走时不会补 `pointerup`，
 不接这一句，`drag` 会留在原位，之后落在盘上的任何一次移动都还在替一个已经不存在的按住状态画线。
 这两件事都不靠 CSS 值作证，靠 `tools/playtest.cjs:492` 的 `diffIx` 那一条断言作证（拖一次 = 两处落子，逐位比对段串）。
 
@@ -197,14 +197,14 @@ seed 游标 `peekSeed`（`js/store.js:158`）是自增小整数，**默认种子
   于是这只键被 raw keyboard 路径反复补发（`tools/playtest.cjs:255-258` 的 `nativeVirtualKeyCode` 那句记着这个坑，所以派发不带它）。
   读着这句理由的是那两行闸：`按键 X 到达游戏一次` 与
   `派发了 N 个按键：到达游戏的 keydown 总数`——不是注释里的一句话。
-  断言取的是页内计数器 `keyHits()` 的**增量**（`js/main.js:691-700` 的 `keys`）：
+  断言取的是页内计数器 `keyHits()` 的**增量**（`js/main.js:955-961` 的 `keys`）：
   `1 seen / 1 handled / 0 repeat / 1 thiskey`，逐只键各取一次快照——
   整段求差只会打印一个大数，说不清是哪一只键被重复送达。
   `Shift` + 方向键与裸方向键的 `ev.key` 同名，所以 `by[]` 也只能取增量。
   到达数只证明"键送到了"，下面那组逐只键读盘面，钉的是"每一只键做了它那句话"
   （光标 +1、+C、落在题面挑的那一格、已画 +1 且只动那一条、求助 +1、步数 −1 两次、撤到底 0 条界）。
 - 盘边的拒答走的是**落点**不存在（那一面没有相邻格），因此那一只键 `disabled`、不带 `aria-pressed`、
-  标签写着"到盘边"（`js/main.js:207-234` 的 `syncPad`）。不可用的控件不许挂着按下态——这一条是被真点击测出来的，
+  标签写着"到盘边"（`js/main.js:255-277` 的 `syncPad`）。不可用的控件不许挂着按下态——这一条是被真点击测出来的，
   不是被 CSS 选择器测出来的。
 
 ## 闸的地图与它的口径
@@ -229,8 +229,8 @@ README / DESIGN 里每个数字后面都挂着 `文件:行号`。这句"行号�
 它是家族标准（ferry / tatamibari / yajilin / lightsout / tapa 同一份规则）在本仓的那一份：
 
 - **锚点**：只查"行号不超过文件长度"连隔壁一行都抓不住。贴着引用写在反引号里的那个名字，必须真的出现在
-  被指的那几行里。本仓这一把第一次跑就抓出一条真漂：`Store.clearResume()` 在 `js/main.js:424`，
-  而文档原先把它挂在隔壁那一行（`:423`）。
+  被指的那几行里。本仓这一把第一次跑就抓出一条真漂：`Store.clearResume()` 在 `js/main.js:593`，
+  而文档原先把它挂在隔壁那一行（`:592`）。
 - **续引**（完整引用后面只写 `:NN`）：向**同一句里最近的那条完整引用**借路径；句号、分号、空行、新标题都
   截断这次借。**正文里提到一个文件名不构成出处**——那种写法计入「无法定址」，宁可数出来，也不在错的文件上判绿。
 - **跨仓引用**（`../别的仓/…:NN`）按**形状**分出去，只数不验：单仓 checkout 里根本读不到兄弟仓，
@@ -294,7 +294,7 @@ README / DESIGN 里每个数字后面都挂着 `文件:行号`。这句"行号�
 1. **V7 是我们的字面裁定。** 两家出版方都写 "area"（`js/engine/rules.js:1-21` 的 `Nikoli`、Cross+A 两句逐字抄了原句），
    都没有裁决"半区必须连通"这一层；官方 4×4 例题在宽松与严格两种读法下给出同一唯一解
    （`js/engine/rules.js:144-152` 的 `golden` 两种读法都过）。
-   所以我们采用严格读法，并且**明说这是裁定**：`tools/engine-test.mjs:139` 的 `area`（第 3 段）要求存在
+   所以我们采用严格读法，并且**明说这是裁定**：`tools/engine-test.mjs:141` 的 `area`（第 3 段）要求存在
    "只违反 V7"的见证盘——如果这条承重条款其实不承重，那一段就会红。
 2. **枚举预算会换底纹。** 见"出题"一节末尾。承诺是"这盘在无上限规则下唯一"，
    不是"所有底纹都算得起"；B3b 与 B6 一正一反地把这句话钉成读数。

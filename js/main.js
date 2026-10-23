@@ -265,10 +265,10 @@ function syncPad() {
       btn.dataset.seg = '';
       // 按下态是**那一条段**的属性，不是这只键的。光标走到盘边之后这一段已经不存在了，
       // 留着上一次的 aria-pressed="true" 就等于对着"没有相邻的格"这句话亮着一盏已画界灯。
-      // 写成显式的 'false' 而不是把属性摘掉：摘掉之后这只键在读屏里从"开关"降级成"普通按钮"，
-      // 每一次走到盘边都在换它的角色；而 disabled + aria-pressed="false" 说的是同一句
-      // "此处无界可画"，样式（button[aria-pressed='true']）与读屏两头都不必为它开特例。
-      btn.setAttribute('aria-pressed', 'false');
+      // 写成显式的 'false' 也不行：aria-pressed 在场就意味着"这里有一个能被按下/弹起的开关"，
+      // 而这一格说的是"这里根本没有可按下的东西"——读屏读到的是"这个键此刻不参与"，
+      // 不是"这个键参与、现在关着"。所以这一格只留 disabled 与那句 aria-label。
+      btn.removeAttribute('aria-pressed');
       continue;
     }
     const k = game.segIx.get(segKey(game.cursor, to));
@@ -521,7 +521,10 @@ function undo() {
 // 画/擦一条段：k 是段号（segmentTable 的下标），target 省略就是取反。
 // 被 game.js 挡回来的那一步会把挡回来的那句话写进状态行——玩家得看得见"为什么没落子"。
 function setSeg(k, target = null) {
-  if (blocked()) return null;
+  // 浮层/暂停/出题中的那一层直接挡住；但"这一局已经赢了"这一层要**说话**——
+  // 引擎给的那句"这一局已经推完了。"是玩家唯一知道自己为什么按不动的线索，
+  // 把它连同拒绝一起吞掉就只剩一块不会动的盘面。
+  if (blocked() && !(game && game.status === 'won')) return null;
   const r = game.toggleSeg(k, target);
   if (r.refused) {
     say(r.refused);
@@ -538,7 +541,8 @@ function setSeg(k, target = null) {
 
 // 键盘那条路：动作发生在"光标这一格与那一面邻居之间"，落子形状与指针完全相同。
 function setDir(dir) {
-  if (blocked()) return null;
+  // 与 setSeg 同一口径：赢了以后按方向键也要说得出为什么按不动。
+  if (blocked() && !(game && game.status === 'won')) return null;
   const r = game.toggleDir(game.cursor, dir);
   if (r.refused) {
     say(r.refused);
@@ -702,9 +706,12 @@ function show(which) {
   el.viewMenu.hidden = which !== 'menu';
   el.viewGame.hidden = which !== 'game';
   if (which === 'menu') {
-    // 停表 + 结算 + 存档：三条都在这一条腿上，任何一条留在调用方都会漏（三个不同的按钮
-    // 都能回选档，其中一个忘了 flushResume 就等于"回选档丢掉这一局"）。
-    flushResume();
+    // 停表 + 结算：两条都在这一条腿上，任何一条留在调用方都会漏。
+    // **存档不在这一条腿上**：flushResume 归三个"回选档"的按钮各自调用。
+    // 放在 show() 里看着更保险，实则更危险——它会在**任何一次**切到选档页时把当前这一局
+    // 存回存档位，包括程序化调用 show('menu') 的那几条（续局/坏档那两条腿就走这条路）。
+    // 于是"读到的存档"被"当前这一局"悄悄顶掉：坏档刚种下就被合法档覆盖，
+    // 玩家点"继续"续的是另一局，而这一局自己再也回不来了。
     session.stop();
     Sound.resumeAudio();
     syncPauseVeil();
@@ -777,7 +784,10 @@ function renderResumeCard() {
   // Do not offer "继续" for the board already on screen.
   // 这里问的是"这一局还在屏幕上"，不是"计时还在走"：暂停中的局同样在屏幕上，
   // 用 session.running() 判会让暂停后回选档时多出一张继续自己已摆着的那局的卡片。
-  const live = !!game && game.status !== 'won' && !el.viewMenu.hidden;
+  // 「还在屏幕上」= 棋局视图可见（el.viewGame），不是菜单视图可见：
+  // 回选档之后棋局视图已经收起来了，这一局就不在屏幕上了，卡片应当重新露出来——
+  // 判反了它就变成"回选档之后永远给不出继续卡片"，玩家回选档等于把这一局丢了。
+  const live = !!game && game.status !== 'won' && !el.viewGame.hidden;
   if (!r || (live && r.seed === game.puzzle.seed && r.tier === game.puzzle.tier)) {
     el.resumeCard.hidden = true;
     return;
@@ -896,12 +906,16 @@ for (const [dir] of DIRS) el.pad[dir].addEventListener('click', () => setDir(dir
 $('#btn-hint').addEventListener('click', useHint);
 $('#btn-undo').addEventListener('click', undo);
 $('#btn-new').addEventListener('click', restart);
-$('#btn-menu').addEventListener('click', () => show('menu'));
-$('#btn-menu-2').addEventListener('click', () => show('menu'));
+// 三个"回选档"按钮各自把这一局存进存档位再切页面：一个忘了存就等于"回选档丢掉这一局"。
+// 存档动作放在按钮上而不是 show('menu') 里，是因为 show('menu') 还会被程序化调用
+// （续局/坏档那两条腿就走这条路），那几次切页不该把存档位顶掉。
+const toMenu = () => { flushResume(); show('menu'); };
+$('#btn-menu').addEventListener('click', toMenu);
+$('#btn-menu-2').addEventListener('click', toMenu);
 $('#btn-again').addEventListener('click', restart);
 el.btnPause.addEventListener('click', togglePause);
 el.btnPause2.addEventListener('click', () => setPaused(false));
-el.btnPauseMenu.addEventListener('click', () => show('menu'));
+el.btnPauseMenu.addEventListener('click', toMenu);
 el.btnFull.addEventListener('click', toggleFullscreen);
 el.btnHowto.addEventListener('click', () => setHowto());
 el.btnHowtoClose.addEventListener('click', () => setHowto(false));

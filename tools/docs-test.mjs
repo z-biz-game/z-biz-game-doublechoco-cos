@@ -234,28 +234,28 @@ export function run(ok) {
   head('4. 续引的七把控制腿（全在内存里，盘上的文档一个字不动）');
   // 借到 / 句尾墙 / 软换行仍算同一句 / 空行与新标题截断 / 借来的路径喂进边界检查 /
   // 正文里提到的文件名不是出处 / 同一句改写成完整引用就读得回来。
-  const cG = audit('`SAMPLES`（`tools/engine-test.mjs:20`）、`fails`（`:21`）');
+  const cG = audit('`SAMPLES`（`tools/engine-test.mjs:22`）、`fails`（`:23`）');
   ok('D 续引在同句内借到出处，并带上自己那一格的指认',
     cG.refs.length === 2 && cG.cont === 1 && cG.unaddressed === 0 &&
     cG.outOfRange.length + cG.anchorBad.length === 0 && cG.refs.every((r) => r.path === 'tools/engine-test.mjs'),
     [...cG.outOfRange, ...cG.anchorBad].join(' | ') + `（refs=${cG.refs.length} 借到=${cG.cont} 借不到=${cG.unaddressed}）`);
-  const cW = audit('`SAMPLES`（`tools/engine-test.mjs:20`）。\n`fails`（`:21`）');
+  const cW = audit('`SAMPLES`（`tools/engine-test.mjs:22`）。\n`fails`（`:23`）');
   ok('D 句号把借的窗口关上：下一句的续引不许挂到上一句的出处上',
     cW.refs.length === 1 && cW.unaddressed === 1, `refs=${cW.refs.length} 借不到=${cW.unaddressed}`);
-  const cP = audit('`SAMPLES`（`tools/engine-test.mjs:20`）、\n`fails`（`:21`）');
+  const cP = audit('`SAMPLES`（`tools/engine-test.mjs:22`）、\n`fails`（`:23`）');
   ok('D 软换行不算换句：同一句折行后续引照样借得到',
     cP.refs.length === 2 && cP.unaddressed === 0, `refs=${cP.refs.length} 借不到=${cP.unaddressed}`);
-  const cH = audit('`SAMPLES`（`tools/engine-test.mjs:20`）\n\n## 续\n`fails`（`:21`）');
+  const cH = audit('`SAMPLES`（`tools/engine-test.mjs:22`）\n\n## 续\n`fails`（`:23`）');
   ok('D 空行与新标题同样截断这次借', cH.refs.length === 1 && cH.unaddressed === 1,
     `refs=${cH.refs.length} 借不到=${cH.unaddressed}`);
-  const cB = audit('`SAMPLES`（`tools/engine-test.mjs:20`）、`fails`（`:99999`）');
+  const cB = audit('`SAMPLES`（`tools/engine-test.mjs:22`）、`fails`（`:99999`）');
   ok('D 借来的路径喂进边界检查：续引写一个越界的行号必须红，并点名被借的那个文件',
     cB.outOfRange.length === 1 && cB.outOfRange[0].includes('tools/engine-test.mjs') && cB.outOfRange[0].includes('越界'),
     cB.outOfRange.join(' | ') || '（没红）');
-  const cF = audit('这套名单住在 `engine-test.mjs` 里，`fails`（`:21`）');
+  const cF = audit('这套名单住在 `engine-test.mjs` 里，`fails`（`:23`）');
   ok('D 正文里提到的文件名不是出处：这种写法必须算借不到，而不是在错的文件上判绿',
     cF.refs.length === 0 && cF.unaddressed === 1, `refs=${cF.refs.length} 借不到=${cF.unaddressed}`);
-  const cC = audit('这套名单住在 `engine-test.mjs` 里，`fails`（`tools/engine-test.mjs:21`）');
+  const cC = audit('这套名单住在 `engine-test.mjs` 里，`fails`（`tools/engine-test.mjs:23`）');
   ok('D 同一句改写成完整引用就读得回来：上一条红的是写法，不是解析器漏了这一句',
     cC.refs.length === 1 && cC.unaddressed === 0 && cC.outOfRange.length + cC.anchorBad.length === 0,
     [...cC.outOfRange, ...cC.anchorBad].join(' | ') + `（refs=${cC.refs.length} 借不到=${cC.unaddressed}）`);
@@ -280,9 +280,9 @@ export function run(ok) {
   head('6. 阳性对照：六种真注解写法 + 真行数必须判绿');
   // 上一条的"红"可能只是解析器自己坏了——这一把用本仓真的行与真的名字，走同一个 audit。
   const pkgLines = linesOf('package.json');
-  const fwd = audit('`SAMPLES`（`tools/engine-test.mjs:20`）、`tools/engine-test.mjs:20`（`SAMPLES`）、' +
-    '`tools/engine-test.mjs:20` 的 `SAMPLES`、`js/engine/generate.js:67`（`makePuzzle(R, C, seed, opt)`）、' +
-    '`js/main.js:92`（`js/main.js::announce`）、`tools/engine-test.mjs:20`（`npm test`） 与 ' +
+  const fwd = audit('`SAMPLES`（`tools/engine-test.mjs:22`）、`tools/engine-test.mjs:22`（`SAMPLES`）、' +
+    '`tools/engine-test.mjs:22` 的 `SAMPLES`、`js/engine/generate.js:63`（`makePuzzle(R, C, seed, opt)`）、' +
+    '`js/main.js:127`（`js/main.js::announce`）、`tools/engine-test.mjs:22`（`npm test`） 与 ' +
     '`package.json`（' + (pkgLines ? pkgLines.length : 0) + ' 行）');
   ok('D 后向、前向括号、「的」、`path::symbol`、函数调用五种真注解加带空格的命令行 body 都在同一个解析器下判绿',
     fwd.outOfRange.length === 0 && fwd.anchorBad.length === 0 && fwd.refs.length === 6,
@@ -290,14 +290,14 @@ export function run(ok) {
 
   // 模板前缀：`name:<占位>` 指的是那串字面量前缀。本仓文档没这么写过，所以这一把只由台架证明——
   // 规则一丢，`NOPE:<占位>` 那种假引用连锚点都不会生成，九把里就少一把。
-  const tplGreen = audit('`js/engine/generate.js:67`（`makePuzzle:<占位>`）');
-  const tplRed = audit('`js/engine/generate.js:67`（`NOPE:<占位>`）').anchorBad;
+  const tplGreen = audit('`js/engine/generate.js:63`（`makePuzzle:<占位>`）');
+  const tplRed = audit('`js/engine/generate.js:63`（`NOPE:<占位>`）').anchorBad;
   ok('D 模板 body 取字面量前缀（前缀对得上判绿、对不上必须红）',
     tplGreen.anchorBad.length === 0 && tplGreen.refs.length === 1 && tplRed.length === 1,
     `绿=${tplGreen.anchorBad.length ? tplGreen.anchorBad.join(' | ') : 'ok'} · 红在 ${tplRed.join(' | ') || '（一处都没红）'}`);
 
   // 反方向的控制：逗号不是指认。前面那个名字只是列表的上一项，按它钉会把正确的文档读红。
-  const comma = audit('`NO_SUCH_NAME`，`tools/engine-test.mjs:20`');
+  const comma = audit('`NO_SUCH_NAME`，`tools/engine-test.mjs:22`');
   ok('D 纯标点间隔（`，`）不构成指认：这种写法必须判绿',
     comma.anchorBad.length === 0 && comma.refs.length === 1,
     `${comma.anchorBad.join(' | ') || '绿'}（refs=${comma.refs.length}）`);
@@ -305,9 +305,9 @@ export function run(ok) {
   head('7. 这条腿对本仓文档真有牙齿');
   // 把一条界内的真引用挪歪一格，越界检查看不见它（68 在界内），只有锚点抓得住。
   // 改的是内存里的副本，盘上的文档一个字不动。
-  const needle = '`makePuzzle`（`js/engine/generate.js:67`';
+  const needle = '`makePuzzle`（`js/engine/generate.js:63`';
   const hits = docText.split(needle).length - 1;
-  const poisoned = audit(docText.replace(needle, '`makePuzzle`（`js/engine/generate.js:68`'));
+  const poisoned = audit(docText.replace(needle, '`makePuzzle`（`js/engine/generate.js:64`'));
   ok('D 把文档里一条真引用的行号挪歪一格，这条腿必须为它变红',
     hits === 1 && poisoned.anchorBad.length === 1,
     `needle 命中 ${hits} 处 · 红在 ${[...poisoned.outOfRange, ...poisoned.anchorBad].join(' | ') || '（一处都没红）'}`);

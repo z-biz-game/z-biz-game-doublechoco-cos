@@ -31,11 +31,19 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ASSEMBLE = 'tools/assemble-site.sh';
 // R 段实际检查的路径条数。改页面/清单会改变它——那正是要它变的时候；没改页面却掉了，
 // 说明引用解析不出来的那部分被悄悄放过了。对着 DEPLOY_SET_DUMP=1 的出处表能逐条核。
-const EXPECT_CHECKS = 42;
+// 58 条 = index.html 的 16 份 classic script + 6 条 css url() + 3 张 manifest 图标
+//        + js/sw-register.js 与它请的 sw.js + sw.js 的 SHELL[] 里那 30 条离线壳清单。
+// （2026-10-22 重钉：从 42 变成 58，钉的是实数，强度不变——多出来的是把
+//   SW 注册从 index.html 的内联块挪进 js/sw-register.js 之后，引用走查才第一次
+//   量得到 sw.js 与离线壳那 30 条；这正是这道闸要防的"清单落后于页面"那一类。）
+const EXPECT_CHECKS = 58;
 // 全绿时这个闸实际跑的断言条数（W/R/P 三段之和）。钉住它，「少一条断言」就不可能是绿的：
 // 删掉 manifest 里的一张图标会同时少一条 R10 与那张的 P1/P2 两行——那条路径缺文件本来就该红，
 // 但 rows 能漂就是闸在缩水的信号，所以两个数一起钉。
-const EXPECT_ROWS = 61;
+// 77 条 = 61 + 16：多出来的 16 条是 sw.js 的 SHELL[] 现在列了 16 份 classic script
+// （原先只列 js/main.js 一份，离线打开时那 15 层代码根本没装上）。
+// （2026-10-22 重钉，钉的是实数，强度不变。）
+const EXPECT_ROWS = 77;
 
 let rows = 0;
 const fails = [];

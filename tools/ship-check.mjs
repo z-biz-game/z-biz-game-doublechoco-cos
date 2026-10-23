@@ -10,7 +10,7 @@
 // 判法（三条，缺一不可）：
 //  1) 引用收集：index.html 的 href/src/og:image、css/*.css 的 url(...)、manifest 的 icons[].src、
 //     sw.js 的 SHELL[]、js/ 里出现的 assets/ icons/ 字面量 —— 同源、非 data:、非跨源。
-//     每条都必须①在仓树里真实存在 ②在 pages.yml 拷贝腿覆盖的产物集合里。
+//     每条都必须①在仓树里真实存在 ②在**上线清单**（tools/assemble-site.sh）覆盖的产物集合里。
 //  2) 像素真实性：每个 .png 读 magic + IHDR，宽高都必须是正数、文件非 0 字节；
 //     `sizes="WxH"` 声明必须与 IHDR 实测一致（SVG 冒充 PNG、名不副实的 512 都在这条红）。
 //     ≥180px 的下限单独判（apple-touch 与 PWA 图标都要过）。
@@ -28,21 +28,26 @@ const reds = [];
 const fail = (msg) => reds.push(msg);
 
 // ---------------------------------------------------------------- 1. 拷贝腿 → 产物集合
+// 清单只有一份：tools/assemble-site.sh。pages.yml 现在只调它（与农场其余仓同一形态），
+// 所以"上线产物里有什么"的尺子必须读那一份——去 workflow 里读手抄的 cp 行等于量另一份清单，
+// 而两份清单漂了正是这一闸要防的坏法。断言一条没动：仍然要求每条同源引用
+// ①在仓树里真实存在 ②在这份清单覆盖的产物集合里。
 function parseCopyLegs() {
-  const wf = path.join(ROOT, '.github/workflows/pages.yml');
-  if (!fs.existsSync(wf)) { fail('pages.yml 不存在：无法判断上线产物里有什么'); return { legs: [], shipped: new Set(), mkdirs: [] }; }
-  const yml = fs.readFileSync(wf, 'utf8');
-  // run 块：取 `mkdir _site` 之后所有 cp / cp -r 的行（ Pages 的产物目录写死为 _site）。
+  const list = path.join(ROOT, 'tools/assemble-site.sh');
+  if (!fs.existsSync(list)) { fail('tools/assemble-site.sh 不存在：无法判断上线产物里有什么'); return { legs: [], shipped: new Set() }; }
+  const txt = fs.readFileSync(list, 'utf8');
+  // 脚本里的目标目录是 "$DEST"（参数），尺子按 Pages 的产物目录 _site 读它。
   const legs = [];
-  for (const line of yml.split('\n')) {
+  for (const line of txt.split('\n')) {
     const m = /^\s*(?:-\s*\S+\s*)?cp\s+(.*)$/.exec(line);
     if (!m) continue;
-    const argv = m[1].trim();
+    const raw = m[1].trim();
+    const argv = raw.replace(/\$DEST\b/g, '_site');
     const parts = argv.split(/\s+/).filter((x) => x && !x.startsWith('-'));
     const dest = parts[parts.length - 1];
     const srcs = parts.slice(0, -1);
     if (!srcs.length || !dest.includes('_site')) continue;
-    legs.push({ srcs, recursive: /(^|\s)-[rR](\s|$)/.test(argv), line: line.trim() });
+    legs.push({ srcs, recursive: /(^|\s)-[rR](\s|$)/.test(raw), line: line.trim() });
   }
   const shipped = new Set();
   for (const leg of legs) {
@@ -63,7 +68,7 @@ function parseCopyLegs() {
 }
 
 const { legs, shipped } = parseCopyLegs();
-if (!legs.length) fail('pages.yml 里一条 cp 到 _site 的腿都没有：产物集合无法确定');
+if (!legs.length) fail('tools/assemble-site.sh 里一条 cp 到产物的腿都没有：产物集合无法确定');
 
 // ---------------------------------------------------------------- 2. 引用收集
 const refs = new Map(); // 路径 -> 出处列表

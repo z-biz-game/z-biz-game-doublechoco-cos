@@ -677,7 +677,7 @@
     // 所以"难度实测"这一格必须报"—"而不是编一个数：js/ui/game.js 的 boardSteps 读 puzzle.stats.steps，
     // 而 rebuild 给的 stats 只有 {ms}——undefined 也不是 null，只判 null 就会印出"undefined 轮"。
     ck('续局的难度实测报"—"，不编一个数', text('#stat-score').startsWith('—'), text('#stat-score'));
-    // 「这一局耗时」在续局这条路上读的是 rebuild 当场重证判据花掉的毫秒（js/main.js:426 抄的 stats.ms），
+    // 「这一局耗时」在续局这条路上读的是 rebuild 当场重证判据花掉的毫秒（js/main.js:599 抄的 stats.ms），
     // 所以它是这一份文档量出来的数，不是出货那一盘抄来的——把它抹成"—（续局）"反而是说谎。
     // "没有重跑出题器"这句话由于上面那行（难度实测）与下面这行（遮罩文案）一起作证。
     ck('续局的耗时读数是一个量出来的毫秒数', /^\d+ ms$/.test(text('#stat-genms')), text('#stat-genms'));

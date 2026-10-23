@@ -123,8 +123,8 @@ if (mfBase) {
     for (const i of s.icons || []) if (i.src && i.sizes && dataPng(i.src)) dataIcons.push({ from: `manifest.shortcuts[${n}].icons`, src: String(i.src).trim(), sizes: String(i.sizes) });
   });
 }
-// X1 的刀口是"清单少收一类文件"。有位图目录时砍那个 for 循环；内联位图的仓根本没有位图目录，
-// 砍循环打在空处，就改砍无条件的那一行（css 不再进产物），R10 必须点名缺的那份 CSS。
+// X1 的刀口是"清单少收一类文件"。有位图目录时砍收位图目录的那一行；内联位图的仓根本没有位图目录，
+// 砍那一行打在空处，就改砍无条件的那一行（css 不再进产物），R10 必须点名缺的那份 CSS。
 const cssRefInArtifact = dump.find((d) => real(d) && /\.css$/i.test(d.target) && existing(d.target));
 
 line(`基线: rc=0 ${baseRun.tally} rows=${baseRun.rows} refs=${dump.length} 位图引用=${pngRefs.length} 内联位图=${dataIcons.length}`);
@@ -157,18 +157,18 @@ function knife(tag, want, mutate, note) {
 let bad = 0;
 
 // X1 清单落后于页面：assemble 少收一类文件，产物里没有它而页面会去要。
-// 有位图目录（这一仓 55/59 走 icons/，2 个走 assets/）就砍那个 for 循环，期望由靶子自己决定，
-// 两个目录名都在针里；内联位图的仓没有位图目录可砍，就砍无条件那行的 css。
+// 有位图目录就砍拷贝清单里收位图目录的那一行（这一仓走 icons/），期望由靶子自己决定；
+// 内联位图的仓没有位图目录可砍，就砍无条件那行的 css。
 if (pngRefs.length) {
   if (!knife('X1 assemble 不收位图目录', ['R10', path.basename(pngRefs[0].target)], (dir) => {
-    edit(dir, 'tools/assemble-site.sh', 'for d in icons assets; do', 'for d in probe_missing_dir; do');
+    edit(dir, 'tools/assemble-site.sh', 'cp -r css js icons "$DEST/"', 'cp -r css js "$DEST/"');
   })) bad += 1;
 } else {
   if (!cssRefInArtifact) {
     line('X1 INERT · 这一仓既没有位图目录可砍，index.html 也没引到一份在产物里的 CSS');
     bad += 1;
   } else if (!knife('X1 assemble 不收 css 目录', ['R10', path.basename(cssRefInArtifact.target)], (dir) => {
-    edit(dir, 'tools/assemble-site.sh', 'cp -r css js "$DEST/"', 'cp -r js "$DEST/"');
+    edit(dir, 'tools/assemble-site.sh', 'cp -r css js icons "$DEST/"', 'cp -r js icons "$DEST/"');
   })) bad += 1;
 }
 
