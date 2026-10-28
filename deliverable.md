@@ -56,10 +56,10 @@ git worktree add -f /tmp/dc-b 3043196     # 远端侧那棵树
 | `node tools/behavior-test.mjs` | `behavior 70/70 绿`（静音/暂停/重开/存档两段式解码） |
 | `node tools/balance.mjs` | `33/33 条红线绿` |
 | `node tools/independent.mjs` | rc=0（第二套判据实现与引擎的条款集合逐例一致） |
-| `node tools/ship-check.mjs` | `31 条引用全部①在仓树里②在上线产物里，PNG 逐张 IHDR 可读` · 未上线引用 0 条 |
-| `node tools/deploy-set.mjs` | `部署集：58 条引用（含 3 张位图尺寸核对），失败 0 项` · `rows: 77 fail: 0` |
+| `node tools/ship-check.mjs` | `33 条引用全部①在仓树里②在上线产物里，PNG 逐张 IHDR 可读` · 未上线引用 0 条 |
+| `node tools/deploy-set.mjs` | `部署集：62 条引用（含 3 张位图尺寸核对），失败 0 项` · `rows: 81 fail: 0`（2026-10-28 随 `SHELL[]` 补进 `css/studio.css` 与 `js/haptics.js` 重钉） |
 | `node tools/deploy-set-selftest.mjs` | `DS_SELFTEST rc=0`（十一刀每一刀都被点名；X10 阴性对照按预期不发力） |
-| `node tools/docs-test.mjs` | `24/24 条闸绿` · `2 份文档 · 解析 134 条 · 续引 5 条 · 无法定址 0 处 · 带指认 122 条 · 跨仓引用 0 处` |
+| `node tools/docs-test.mjs` | `24/24 条闸绿` · `3 份文档 · 解析 134 条 · 续引 5 条 · 无法定址 0 处 · 带指认 122 条 · 跨仓引用 0 处` |
 | `bash tools/verify.sh` | 两条 URL 形态（根 `/` 与 Pages 前缀 `/z-biz-game-doublechoco-cos/`）各跑 7 条腿，逐腿 `0 failed`；末尾 `=== ALL GREEN ===` rc=0 |
 
 浏览器闸的腿（每种 URL 形态各一遍）：`core` 38+83 条、`play` 78+35 条、`win` 35+54 条、

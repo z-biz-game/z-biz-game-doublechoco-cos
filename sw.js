@@ -19,8 +19,9 @@ const SHELL = [
   './',
   './index.html',
   './css/game.css',
+  './css/studio.css',
   './manifest.webmanifest',
-  // js/ 下这 16 份是 **classic script**（index.html 按依赖拓扑序挂 16 个 script 标签），
+  // js/ 下这 17 份是 **classic script**（index.html 按依赖拓扑序挂 17 个 script 标签），
   // 少缓存一份就等于离线打开时那一层根本没装上：壳里只有 index.html 的话，
   // 页面在离线时是一片空白（不是报错，是白屏——那种坏法在真机上最难查）。
   // 清单与 index.html 的 script 标签一一对应，顺序照抄（装壳的顺序不影响执行顺序）。
@@ -40,6 +41,7 @@ const SHELL = [
   './js/render/board.js',
   './js/main.js',
   './js/sw-register.js',
+  './js/haptics.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-1024.png',

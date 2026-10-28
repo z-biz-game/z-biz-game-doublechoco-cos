@@ -22,8 +22,8 @@ js/store.js           localStorage：成绩、续局档、seed 游标（存档**
 tools/                闸：engine-test / ui-smoke / balance（node）+ verify.sh / scenarios.js / playtest.cjs（浏览器）
 ```
 
-树里那两句"有出处"的话在这里落回坐标：两个视图是 `index.html:52` 的 `view` 与 `index.html:102` 的 `view` 这两节，
-规则表那个空的 `<ol>` 在 `index.html:96` 的 `rules`，句子由 `js/main.js:761-764` 的 `MENU_RULES` 从引擎的 `RULE_TEXT` 填进去；
+树里那两句"有出处"的话在这里落回坐标：两个视图是 `index.html:54` 的 `view` 与 `index.html:104` 的 `view` 这两节，
+规则表那个空的 `<ol>` 在 `index.html:98` 的 `rules`，句子由 `js/main.js:761-764` 的 `MENU_RULES` 从引擎的 `RULE_TEXT` 填进去；
 `#board` 那句 `touch-action: none` 的理由写在 `css/game.css:217-221` 的 `none` 注释里。
 
 ## 落子是"段"，不是"格"
